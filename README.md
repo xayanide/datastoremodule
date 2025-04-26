@@ -15,6 +15,6 @@ Suphi's DataStore Module comes with 3 dependencies made by Suphi:
 - Signal
 - SynchronousTaskManager
 
-With this fork, Proxy and metatable encapsulation are removed completely, replaced the SycnhronousTaskManagerModule with my own fork of that module which is SyncTaskManager with no Proxy and metatable encapsulation and replaced Signal with Xignal4 which is also a fork of Signal.
+With this fork, Proxy and metatable encapsulation are removed completely, replaced the SynchronousTaskManagerModule with my own fork of that module which is SyncTaskManager with no Proxy and metatable encapsulation and replaced Signal with Xignal4 which is also a fork of Signal.
 - Xignal4Module
 - SyncTaskManagerModule
