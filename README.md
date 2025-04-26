@@ -1,6 +1,6 @@
 # datastoremanagermodule
 
-A Roblox DataStore Wrapper module. datastoremanagermodule is a fork of Suphi's DataStore Module. It behaves the same way and can be used similarly.
+A Roblox DataStore Wrapper module. datastoremanagermodule is a fork of Suphi's DataStore Module. It behaves the same way and can be used similarly. There were a few optimizations and fixes that don't matter but the notable change is the stripping of encapsulation and some validation. The informal changelog can be read in the respective modules' readme files.
 
 Get datastoremanagermodule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreManagerModule
