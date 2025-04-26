@@ -67,5 +67,5 @@ bytes -> charValues
 baseIndex -> baseLength
 stored results of repeatedly used properties as locals only when necessary
 magic strings or numbers are now constants
-added helper functions: getActiveDataStore, getManagerId
+added helper functions: createDataStoreManager, getActiveDataStore, getManagerId
 ]]
