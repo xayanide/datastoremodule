@@ -4,7 +4,7 @@ A Roblox DataStore Wrapper module. datastoremanagermodule is a fork of Suphi's D
 
 The only breaking change in the API is the `dataStore#SaveInternal`. You'll now have to use a method `dataStore#SetSaveInterval()` to change a dataStore's `SaveInterval`, prior it can be changed solely by writing to that property.
 
-The rename from DataStore to DataStoreManager doesn't affect the API because when the end user uses it can be renamed.
+The rename from DataStore to DataStoreManager doesn't affect the API.
 
 Get datastoremanagermodule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreManagerModule
