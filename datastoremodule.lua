@@ -439,7 +439,7 @@ DataStoreMethodSetSaveInterval = function(dataStore, value)
         error("Attempt to set SaveInterval failed: Passed value is less than 10 and not 0", 3)
     end
     if value > DATASTORE_MAX_SAVE_INTERVAL then
-        error("Attempt to set SaveInterval failed: Passed value is more then 1000", 3)
+        error("Attempt to set SaveInterval failed: Passed value is more than 1000", 3)
     end
     if value == dataStore.SaveInterval then
         return
