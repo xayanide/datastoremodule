@@ -56,7 +56,7 @@ local LUA_ARRAY_LENGTH_OFFSET = 1
 local DataStoreModule = {}
 local scriptName = script.Name
 local isModuleActive = true
-local activeDataStoreInstances = {}
+local activeRobloxDataStores = {}
 local activeDataStores, bindToCloseDataStores = {}, {}
 local DataStoreModuleNew, DataStoreModuleHidden, DataStoreModuleFind, DataStoreModuleResponse
 local DataStoreMethodOpen, DataStoreMethodRead, DataStoreMethodSave, DataStoreMethodClose, DataStoreMethodDestroy, DataStoreMethodQueue, DataStoreMethodRemove, DataStoreMethodClone, DataStoreMethodReconcile, DataStoreMethodUsage, DataStoreMethodSetSaveInterval
@@ -68,7 +68,7 @@ local Encode, Decode
 local StartSaveTimer, StopSaveTimer
 local StartLockTimer, StopLockTimer
 local onProcessQueueConnected, onSaveTimerEnded, onLockTimerEnded, onBindToClose
-local getActiveDataStoreInstance, createDataStore, getDataStoreId
+local getActiveRobloxDataStore, createDataStore, getDataStoreId
 
 local baseCharacters = { [0] = "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "!", "$", "%", "&", "'", ",", ".", "/", ":", ";", "=", "?", "@", "[", "]", "^", "_", "`", "{", "}", "~" }
 local baseLength = #baseCharacters + LUA_ARRAY_LENGTH_OFFSET
@@ -141,15 +141,15 @@ export type DataStore = {
     MemoryStoreQueue: MemoryStoreQueue,
 }
 
-getActiveDataStoreInstance = function(name, scope)
+getActiveRobloxDataStore = function(name, scope)
     local dataStoreId = name .. "/" .. scope
-    local activeDataStore = activeDataStoreInstances[dataStoreId]
+    local activeDataStore = activeRobloxDataStores[dataStoreId]
     if activeDataStore ~= nil then
         return activeDataStore
     end
-    local dataStoreInstance = DataStoreService:GetDataStore(name, scope)
-    activeDataStoreInstances[dataStoreId] = dataStoreInstance
-    return dataStoreInstance
+    local robloxDataStore = DataStoreService:GetDataStore(name, scope)
+    activeRobloxDataStores[dataStoreId] = robloxDataStore
+    return robloxDataStore
 end
 
 createDataStore = function(name, scope, key, dataStoreId, isHidden)
@@ -196,7 +196,7 @@ createDataStore = function(name, scope, key, dataStoreId, isHidden)
         SaveTime = -math.huge,
         ActiveLockInterval = 0,
         ProcessingQueue = false,
-        DataStore = getActiveDataStoreInstance(name, scope),
+        DataStore = getActiveRobloxDataStore(name, scope),
         DataStoreSetOptions = Instance.new("DataStoreSetOptions"),
         MemoryStoreSortedMap = MemoryStoreService:GetSortedMap(dataStoreId),
         MemoryStoreQueue = MemoryStoreService:GetQueue(dataStoreId),
@@ -744,7 +744,7 @@ end
 
 Load = function(dataStore, attempts)
     local success, value, info = nil, nil, nil
-    local dataStoreInstance = dataStore.DataStore
+    local robloxDataStore = dataStore.DataStore
     local dataStoreId = dataStore.Id
     local dataStoreKey = dataStore.Key
     for i = 1, attempts do
@@ -755,7 +755,7 @@ Load = function(dataStore, attempts)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] INIT: Load. DataStore:GetAsync")
         end
-        success, value, info = pcall(dataStoreInstance.GetAsync, dataStoreInstance, dataStoreKey)
+        success, value, info = pcall(robloxDataStore.GetAsync, robloxDataStore, dataStoreKey)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] DONE: Load. DataStore:GetAsync. Took " .. os.clock() - sTime .. "s")
         end
@@ -791,7 +791,7 @@ Save = function(dataStore, attempts)
     local dataStoreValue = dataStore.Value
     dataStore.Saving:Fire(dataStoreValue, dataStore)
     local success, value = nil, nil
-    local dataStoreInstance = dataStore.DataStore
+    local robloxDataStore = dataStore.DataStore
     local dataStoreId = dataStore.Id
     local dataStoreMetadata = dataStore.Metadata
     local metadataCompress = dataStoreMetadata.Compress
@@ -806,7 +806,7 @@ Save = function(dataStore, attempts)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] INIT: Save. DataStore:RemoveAsync")
             end
-            success, value = pcall(dataStoreInstance.RemoveAsync, dataStoreInstance, dataStoreKey)
+            success, value = pcall(robloxDataStore.RemoveAsync, robloxDataStore, dataStoreKey)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] DONE: Save. DataStore:RemoveAsync. Took " .. os.clock() - sTime .. "s")
             end
@@ -831,7 +831,7 @@ Save = function(dataStore, attempts)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] INIT: Save. DataStore:SetAsync")
             end
-            success, value = pcall(dataStoreInstance.SetAsync, dataStoreInstance, dataStoreKey, dataStoreValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
+            success, value = pcall(robloxDataStore.SetAsync, robloxDataStore, dataStoreKey, dataStoreValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
             end
@@ -861,7 +861,7 @@ Save = function(dataStore, attempts)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] INIT: Save. DataStore:SetAsync")
             end
-            success, value = pcall(dataStoreInstance.SetAsync, dataStoreInstance, dataStoreKey, dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
+            success, value = pcall(robloxDataStore.SetAsync, robloxDataStore, dataStoreKey, dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
             if IS_DEBUG_ENABLED == true then
                 print("[" .. dataStoreId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
             end
@@ -1094,10 +1094,10 @@ onBindToClose = function()
     while next(bindToCloseDataStores) ~= nil do
         task.wait()
     end
-    for dataStoreId, activeDataStoreInstance in pairs(activeDataStoreInstances) do
-        activeDataStoreInstances[dataStoreId] = nil
+    for dataStoreId, activeRobloxDataStore in pairs(activeRobloxDataStores) do
+        activeRobloxDataStores[dataStoreId] = nil
     end
-    while next(activeDataStoreInstances) ~= nil do
+    while next(activeRobloxDataStores) ~= nil do
         task.wait()
     end
     if IS_DEBUG_ENABLED == true then
