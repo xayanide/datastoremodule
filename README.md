@@ -5,7 +5,6 @@ A Roblox DataStore wrapper module. datastoremodule is a fork of Suphi's DataStor
 Get datastoremodule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
-
 ## Breaking Changes
 
 The only breaking change in the API is with `dataStore#SaveInternal`. You can no longer directly modify a DataStore's `SaveInterval` by assigning a value to it because it's no longer assigned a function due to the de-encapsulation. Instead, you must use the `dataStore#SetSaveInterval()` method to change the interval.
