@@ -15,25 +15,25 @@ local jobId = game.JobId
 local SERVER_ID = if jobId == "" then "Studio" else jobId
 jobId = nil
 local IS_DEBUG_ENABLED = true
-local DEFAULT_DATSTORE_MANAGER_SAVE_INTERVAL = 30
-local DEFAULT_DATSTORE_MANAGER_SAVE_DELAY = 0
-local DEFAULT_DATSTORE_MANAGER_LOCK_INTERVAL = 60
-local DEFAULT_DATSTORE_MANAGER_LOCK_ATTEMPTS = 5
-local DEFAULT_DATSTORE_MANAGER_SAVE_ON_CLOSE = true
+local DEFAULT_DATASTORE_SAVE_INTERVAL = 30
+local DEFAULT_DATASTORE_SAVE_DELAY = 0
+local DEFAULT_DATASTORE_LOCK_INTERVAL = 60
+local DEFAULT_DATASTORE_LOCK_ATTEMPTS = 5
+local DEFAULT_DATASTORE_SAVE_ON_CLOSE = true
 
 local DEFAULT_MEMORYSTOREQUEUE_ADD_ITEM_EXPIRE_TIME = 604800
-local DATASTORE_MANAGER_MIN_SAVE_INTERVAL = 10
-local DATASTORE_MANAGER_MAX_SAVE_INTERVAL = 1000
-local DATASTORE_MANAGER_RESPONSE_STATE = "State"
-local DATASTORE_MANAGER_STATE_DESTROYED = "Destroyed"
-local DATASTORE_MANAGER_STATE_DESTROYING = "Destroying"
-local DATASTORE_MANAGER_STATE_OPEN = "Open"
-local DATASTORE_MANAGER_STATE_CLOSED = "Closed"
-local DATASTORE_MANAGER_STATE_CLOSING = "Closing"
-local DATASTORE_MANAGER_RESPONSE_SUCCESS = "Success"
-local DATASTORE_MANAGER_RESPONSE_SAVED = "Saved"
-local DATASTORE_MANAGER_RESPONSE_LOCKED = "Locked"
-local DATASTORE_MANAGER_RESPONSE_ERROR = "Error"
+local DATASTORE_MIN_SAVE_INTERVAL = 10
+local DATASTORE_MAX_SAVE_INTERVAL = 1000
+local DATASTORE_RESPONSE_STATE = "State"
+local DATASTORE_STATE_DESTROYED = "Destroyed"
+local DATASTORE_STATE_DESTROYING = "Destroying"
+local DATASTORE_STATE_OPEN = "Open"
+local DATASTORE_STATE_CLOSED = "Closed"
+local DATASTORE_STATE_CLOSING = "Closing"
+local DATASTORE_RESPONSE_SUCCESS = "Success"
+local DATASTORE_RESPONSE_SAVED = "Saved"
+local DATASTORE_RESPONSE_LOCKED = "Locked"
+local DATASTORE_RESPONSE_ERROR = "Error"
 local DATASTORE_GLOBAL_SCOPE = "global"
 local DATASTORE_MAX_ENTRY_SIZE = 4194303
 local DATASTORE_SAVE_MAX_ATTEMPTS = 3
@@ -53,13 +53,13 @@ local DEFAULT_DECIMAL_PRECISION = 3
 local COMPRESSION_DECIMAL_BASE = 10
 local LUA_ARRAY_LENGTH_OFFSET = 1
 
-local DataStoreManagerModule = {}
+local DataStoreModule = {}
 local scriptName = script.Name
 local isModuleActive = true
-local activeDataStores = {}
-local activeDataStoreManagers, bindToCloseDataStoreManagers = {}, {}
-local DataStoreManagerModuleNew, DataStoreManagerModuleHidden, DataStoreManagerModuleFind, DataStoreManagerModuleResponse
-local DataStoreManagerMethodOpen, DataStoreManagerMethodRead, DataStoreManagerMethodSave, DataStoreManagerMethodClose, DataStoreManagerMethodDestroy, DataStoreManagerMethodQueue, DataStoreManagerMethodRemove, DataStoreManagerMethodClone, DataStoreManagerMethodReconcile, DataStoreManagerMethodUsage, DataStoreManagerMethodSetSaveInterval
+local activeDataStoreInstances = {}
+local activeDataStores, bindToCloseDataStores = {}, {}
+local DataStoreModuleNew, DataStoreModuleHidden, DataStoreModuleFind, DataStoreModuleResponse
+local DataStoreMethodOpen, DataStoreMethodRead, DataStoreMethodSave, DataStoreMethodClose, DataStoreMethodDestroy, DataStoreMethodQueue, DataStoreMethodRemove, DataStoreMethodClone, DataStoreMethodReconcile, DataStoreMethodUsage, DataStoreMethodSetSaveInterval
 local OpenTask, ReadTask, LockTask, SaveTask, CloseTask, DestroyTask, ProcessQueueTask
 local Lock, Unlock, Load, Save
 local Clone, Reconcile
@@ -68,19 +68,20 @@ local Encode, Decode
 local StartSaveTimer, StopSaveTimer
 local StartLockTimer, StopLockTimer
 local onProcessQueueConnected, onSaveTimerEnded, onLockTimerEnded, onBindToClose
-local getActiveDataStore, createDataStoreManager, getManagerId
+local getActiveDataStoreInstance, createDataStore, getDataStoreId
 
 local baseCharacters = { [0] = "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "!", "$", "%", "&", "'", ",", ".", "/", ":", ";", "=", "?", "@", "[", "]", "^", "_", "`", "{", "}", "~" }
 local baseLength = #baseCharacters + LUA_ARRAY_LENGTH_OFFSET
 local charValues = {}
+local getByteValues = string.byte
 for i = (0), #baseCharacters do
-    charValues[string.byte(baseCharacters[i])] = i
+    charValues[getByteValues(baseCharacters[i])] = i
 end
 
-export type DataStoreManagerModule = {
-    new: (name: string, scope: string, key: string?) -> DataStoreManager,
-    hidden: (name: string, scope: string, key: string?) -> DataStoreManager,
-    find: (name: string, scope: string, key: string?) -> DataStoreManager?,
+export type DataStoreModule = {
+    new: (name: string, scope: string, key: string?) -> DataStore,
+    hidden: (name: string, scope: string, key: string?) -> DataStore,
+    find: (name: string, scope: string, key: string?) -> DataStore?,
     Response: {
         Success: string,
         Saved: string,
@@ -90,7 +91,7 @@ export type DataStoreManagerModule = {
     },
 }
 
-export type DataStoreManager = {
+export type DataStore = {
     [any]: any,
     Value: any,
     Metadata: { [string]: any },
@@ -111,22 +112,22 @@ export type DataStoreManager = {
     UpdatedTime: number,
     DataStoreVersion: string,
     CompressedValue: string,
-    StateChanged: SignalModule.SignalModul,
+    StateChanged: SignalModule.Signal,
     Saving: SignalModule.Signal,
     Saved: SignalModule.Signal,
     AttemptsChanged: SignalModule.Signal,
-    ProcessQueue: SignalModule.Signal & { dataStoreManager: DataStoreManager, Connected: (isConnected: boolean, signal: SignalModule.Signal) -> any },
-    Open: (self: DataStoreManager, template: any?) -> (string, any),
-    Read: (self: DataStoreManager, template: any?) -> (string, any),
-    Save: (self: DataStoreManager) -> (string, any),
-    Close: (self: DataStoreManager) -> (string, any),
-    Destroy: (self: DataStoreManager) -> (string, any),
-    Queue: (self: DataStoreManager, value: any, expiration: number?, priority: number?) -> (string, any),
-    Remove: (self: DataStoreManager, id: string) -> (string, any),
-    Clone: (self: DataStoreManager) -> any,
-    Reconcile: (self: DataStoreManager, template: any) -> (),
-    Usage: (self: DataStoreManager) -> (number, number),
-    SetSaveInterval: (self: DataStoreManager, value: number) -> (),
+    ProcessQueue: SignalModule.Signal & { dataStore: DataStore, Connected: (isConnected: boolean, signal: SignalModule.Signal) -> any },
+    Open: (self: DataStore, template: any?) -> (string, any),
+    Read: (self: DataStore, template: any?) -> (string, any),
+    Save: (self: DataStore) -> (string, any),
+    Close: (self: DataStore) -> (string, any),
+    Destroy: (self: DataStore) -> (string, any),
+    Queue: (self: DataStore, value: any, expiration: number?, priority: number?) -> (string, any),
+    Remove: (self: DataStore, id: string) -> (string, any),
+    Clone: (self: DataStore) -> any,
+    Reconcile: (self: DataStore, template: any) -> (),
+    Usage: (self: DataStore) -> (number, number),
+    SetSaveInterval: (self: DataStore, value: number) -> (),
     SaveThread: thread?,
     LockThread: thread?,
     TaskManager: SyncTaskManagerModule.TaskManager,
@@ -140,30 +141,28 @@ export type DataStoreManager = {
     MemoryStoreQueue: MemoryStoreQueue,
 }
 
-export type DataStore = DataStoreManager
-
-getActiveDataStore = function(name, scope)
+getActiveDataStoreInstance = function(name, scope)
     local dataStoreId = name .. "/" .. scope
-    local activeDataStore = activeDataStores[dataStoreId]
+    local activeDataStore = activeDataStoreInstances[dataStoreId]
     if activeDataStore ~= nil then
         return activeDataStore
     end
-    local dataStore = DataStoreService:GetDataStore(name, scope)
-    activeDataStores[dataStoreId] = dataStore
-    return dataStore
+    local dataStoreInstance = DataStoreService:GetDataStore(name, scope)
+    activeDataStoreInstances[dataStoreId] = dataStoreInstance
+    return dataStoreInstance
 end
 
-createDataStoreManager = function(name, scope, key, managerId, isHidden)
-    local dataStoreManager = {
+createDataStore = function(name, scope, key, dataStoreId, isHidden)
+    local dataStore = {
         Value = nil,
         Metadata = {},
         UserIds = {},
-        SaveInterval = DEFAULT_DATSTORE_MANAGER_SAVE_INTERVAL,
-        SaveDelay = DEFAULT_DATSTORE_MANAGER_SAVE_DELAY,
-        LockInterval = DEFAULT_DATSTORE_MANAGER_LOCK_INTERVAL,
-        LockAttempts = DEFAULT_DATSTORE_MANAGER_LOCK_ATTEMPTS,
-        SaveOnClose = DEFAULT_DATSTORE_MANAGER_SAVE_ON_CLOSE,
-        Id = managerId,
+        SaveInterval = DEFAULT_DATASTORE_SAVE_INTERVAL,
+        SaveDelay = DEFAULT_DATASTORE_SAVE_DELAY,
+        LockInterval = DEFAULT_DATASTORE_LOCK_INTERVAL,
+        LockAttempts = DEFAULT_DATASTORE_LOCK_ATTEMPTS,
+        SaveOnClose = DEFAULT_DATASTORE_SAVE_ON_CLOSE,
+        Id = dataStoreId,
         ServerId = SERVER_ID,
         LockId = HttpService:GenerateGUID(false),
         Key = key,
@@ -179,17 +178,17 @@ createDataStoreManager = function(name, scope, key, managerId, isHidden)
         Saved = SignalModule.new(),
         AttemptsChanged = SignalModule.new(),
         ProcessQueue = SignalModule.new(),
-        Open = DataStoreManagerMethodOpen,
-        Read = DataStoreManagerMethodRead,
-        Save = DataStoreManagerMethodSave,
-        Close = DataStoreManagerMethodClose,
-        Destroy = DataStoreManagerMethodDestroy,
-        Queue = DataStoreManagerMethodQueue,
-        Remove = DataStoreManagerMethodRemove,
-        Clone = DataStoreManagerMethodClone,
-        Reconcile = DataStoreManagerMethodReconcile,
-        Usage = DataStoreManagerMethodUsage,
-        SetSaveInterval = DataStoreManagerMethodSetSaveInterval,
+        Open = DataStoreMethodOpen,
+        Read = DataStoreMethodRead,
+        Save = DataStoreMethodSave,
+        Close = DataStoreMethodClose,
+        Destroy = DataStoreMethodDestroy,
+        Queue = DataStoreMethodQueue,
+        Remove = DataStoreMethodRemove,
+        Clone = DataStoreMethodClone,
+        Reconcile = DataStoreMethodReconcile,
+        Usage = DataStoreMethodUsage,
+        SetSaveInterval = DataStoreMethodSetSaveInterval,
         SaveThread = nil,
         LockThread = nil,
         TaskManager = SyncTaskManagerModule.new(),
@@ -197,153 +196,153 @@ createDataStoreManager = function(name, scope, key, managerId, isHidden)
         SaveTime = -math.huge,
         ActiveLockInterval = 0,
         ProcessingQueue = false,
-        DataStore = getActiveDataStore(name, scope),
+        DataStore = getActiveDataStoreInstance(name, scope),
         DataStoreSetOptions = Instance.new("DataStoreSetOptions"),
-        MemoryStoreSortedMap = MemoryStoreService:GetSortedMap(managerId),
-        MemoryStoreQueue = MemoryStoreService:GetQueue(managerId),
+        MemoryStoreSortedMap = MemoryStoreService:GetSortedMap(dataStoreId),
+        MemoryStoreQueue = MemoryStoreService:GetQueue(dataStoreId),
     }
-    dataStoreManager.ProcessQueue.dataStoreManager = dataStoreManager
-    dataStoreManager.ProcessQueue.Connected = onProcessQueueConnected
-    return dataStoreManager
+    dataStore.ProcessQueue.dataStore = dataStore
+    dataStore.ProcessQueue.Connected = onProcessQueueConnected
+    return dataStore
 end
 
-getManagerId = function(name, scope, key)
+getDataStoreId = function(name, scope, key)
     return name .. "/" .. scope .. "/" .. key
 end
 
-DataStoreManagerModuleNew = function(name, scope, key)
+DataStoreModuleNew = function(name, scope, key)
     if key == nil then
         key, scope = scope, DATASTORE_GLOBAL_SCOPE
     end
-    local managerId = getManagerId(name, scope, key)
-    local activeDataStoreManager = activeDataStoreManagers[managerId]
-    if activeDataStoreManager ~= nil then
-        return activeDataStoreManager
+    local dataStoreId = getDataStoreId(name, scope, key)
+    local activeDataStore = activeDataStores[dataStoreId]
+    if activeDataStore ~= nil then
+        return activeDataStore
     end
-    local dataStoreManager = createDataStoreManager(name, scope, key, managerId, false)
-    activeDataStoreManagers[managerId] = dataStoreManager
-    return dataStoreManager
+    local dataStore = createDataStore(name, scope, key, dataStoreId, false)
+    activeDataStores[dataStoreId] = dataStore
+    return dataStore
 end
 
-DataStoreManagerModuleHidden = function(name, scope, key)
+DataStoreModuleHidden = function(name, scope, key)
     if key == nil then
         key, scope = scope, DATASTORE_GLOBAL_SCOPE
     end
-    local managerId = getManagerId(name, scope, key)
-    return createDataStoreManager(name, scope, key, managerId, true)
+    local dataStoreId = getDataStoreId(name, scope, key)
+    return createDataStore(name, scope, key, dataStoreId, true)
 end
 
-DataStoreManagerModuleFind = function(name, scope, key)
+DataStoreModuleFind = function(name, scope, key)
     if key == nil then
         key, scope = scope, DATASTORE_GLOBAL_SCOPE
     end
-    local managerId = getManagerId(name, scope, key)
-    return activeDataStoreManagers[managerId]
+    local dataStoreId = getDataStoreId(name, scope, key)
+    return activeDataStores[dataStoreId]
 end
 
-DataStoreManagerModuleResponse = {
-    Success = DATASTORE_MANAGER_RESPONSE_SUCCESS,
-    Saved = DATASTORE_MANAGER_RESPONSE_SAVED,
-    Locked = DATASTORE_MANAGER_RESPONSE_LOCKED,
-    State = DATASTORE_MANAGER_RESPONSE_STATE,
-    Error = DATASTORE_MANAGER_RESPONSE_ERROR,
+DataStoreModuleResponse = {
+    Success = DATASTORE_RESPONSE_SUCCESS,
+    Saved = DATASTORE_RESPONSE_SAVED,
+    Locked = DATASTORE_RESPONSE_LOCKED,
+    State = DATASTORE_RESPONSE_STATE,
+    Error = DATASTORE_RESPONSE_ERROR,
 }
 
-DataStoreManagerMethodOpen = function(dataStoreManager, template)
-    local dataStoreManagerState = dataStoreManager.State
-    if dataStoreManagerState == nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_DESTROYED
+DataStoreMethodOpen = function(dataStore, template)
+    local dataStoreState = dataStore.State
+    if dataStoreState == nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYED
     end
-    local taskManager = dataStoreManager.TaskManager
+    local taskManager = dataStore.TaskManager
     local firstSyncOpenTask = taskManager:FindFirst(OpenTask)
     if firstSyncOpenTask ~= nil then
         return firstSyncOpenTask:Wait(template)
     end
     if taskManager:FindLast(DestroyTask) ~= nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_DESTROYING
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
     end
-    if dataStoreManagerState == true and taskManager:FindLast(CloseTask) == nil then
-        local dataStoreManagerValue = dataStoreManager.Value
-        if dataStoreManagerValue == nil then
-            dataStoreManager.Value = Clone(template)
-        elseif type(dataStoreManagerValue) == "table" and type(template) == "table" then
-            Reconcile(dataStoreManager.Value, template)
+    if dataStoreState == true and taskManager:FindLast(CloseTask) == nil then
+        local dataStoreValue = dataStore.Value
+        if dataStoreValue == nil then
+            dataStore.Value = Clone(template)
+        elseif type(dataStoreValue) == "table" and type(template) == "table" then
+            Reconcile(dataStore.Value, template)
         end
-        return DATASTORE_MANAGER_RESPONSE_SUCCESS
+        return DATASTORE_RESPONSE_SUCCESS
     end
-    return taskManager:InsertBack(OpenTask, dataStoreManager):Wait(template)
+    return taskManager:InsertBack(OpenTask, dataStore):Wait(template)
 end
 
-DataStoreManagerMethodRead = function(dataStoreManager, template)
-    local taskManager = dataStoreManager.TaskManager
+DataStoreMethodRead = function(dataStore, template)
+    local taskManager = dataStore.TaskManager
     local firstSyncReadTask = taskManager:FindFirst(ReadTask)
     if firstSyncReadTask ~= nil then
         return firstSyncReadTask:Wait(template)
     end
-    if dataStoreManager.State == true and taskManager:FindLast(CloseTask) == nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_OPEN
+    if dataStore.State == true and taskManager:FindLast(CloseTask) == nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_OPEN
     end
-    return taskManager:InsertBack(ReadTask, dataStoreManager):Wait(template)
+    return taskManager:InsertBack(ReadTask, dataStore):Wait(template)
 end
 
-DataStoreManagerMethodSave = function(dataStoreManager)
-    local dataStoreManagerState = dataStoreManager.State
-    if dataStoreManagerState == false then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_CLOSED
+DataStoreMethodSave = function(dataStore)
+    local dataStoreState = dataStore.State
+    if dataStoreState == false then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
     end
-    if dataStoreManagerState == nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_DESTROYED
+    if dataStoreState == nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYED
     end
-    local taskManager = dataStoreManager.TaskManager
+    local taskManager = dataStore.TaskManager
     local firstSyncSaveTask = taskManager:FindFirst(SaveTask)
     if firstSyncSaveTask ~= nil then
         return firstSyncSaveTask:Wait()
     end
     if taskManager:FindLast(CloseTask) ~= nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_CLOSING
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSING
     end
     if taskManager:FindLast(DestroyTask) ~= nil then
-        return DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_DESTROYING
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
     end
-    return taskManager:InsertBack(SaveTask, dataStoreManager):Wait()
+    return taskManager:InsertBack(SaveTask, dataStore):Wait()
 end
 
-DataStoreManagerMethodClose = function(dataStoreManager)
-    local dataStoreManagerState = dataStoreManager.State
-    if dataStoreManagerState == nil then
-        return DATASTORE_MANAGER_RESPONSE_SUCCESS
+DataStoreMethodClose = function(dataStore)
+    local dataStoreState = dataStore.State
+    if dataStoreState == nil then
+        return DATASTORE_RESPONSE_SUCCESS
     end
-    local taskManager = dataStoreManager.TaskManager
+    local taskManager = dataStore.TaskManager
     local firstSyncCloseTask = taskManager:FindFirst(CloseTask)
     if firstSyncCloseTask ~= nil then
         return firstSyncCloseTask:Wait()
     end
-    if dataStoreManagerState == false and taskManager:FindLast(OpenTask) == nil then
-        return DATASTORE_MANAGER_RESPONSE_SUCCESS
+    if dataStoreState == false and taskManager:FindLast(OpenTask) == nil then
+        return DATASTORE_RESPONSE_SUCCESS
     end
     local firstSyncDestroyTask = taskManager:FindFirst(DestroyTask)
     if firstSyncDestroyTask ~= nil then
         return firstSyncDestroyTask:Wait()
     end
-    StopLockTimer(dataStoreManager)
-    StopSaveTimer(dataStoreManager)
-    return taskManager:InsertBack(CloseTask, dataStoreManager):Wait()
+    StopLockTimer(dataStore)
+    StopSaveTimer(dataStore)
+    return taskManager:InsertBack(CloseTask, dataStore):Wait()
 end
 
-DataStoreManagerMethodDestroy = function(dataStoreManager)
-    if dataStoreManager.State == nil then
-        return DATASTORE_MANAGER_RESPONSE_SUCCESS
+DataStoreMethodDestroy = function(dataStore)
+    if dataStore.State == nil then
+        return DATASTORE_RESPONSE_SUCCESS
     end
-    activeDataStoreManagers[dataStoreManager.Id] = nil
-    StopLockTimer(dataStoreManager)
-    StopSaveTimer(dataStoreManager)
-    local taskManager = dataStoreManager.TaskManager
+    activeDataStores[dataStore.Id] = nil
+    StopLockTimer(dataStore)
+    StopSaveTimer(dataStore)
+    local taskManager = dataStore.TaskManager
     local firstSyncDestroyTask = taskManager:FindFirst(DestroyTask)
-    local syncDestroyTask = if firstSyncDestroyTask ~= nil then firstSyncDestroyTask else taskManager:InsertBack(DestroyTask, dataStoreManager)
+    local syncDestroyTask = if firstSyncDestroyTask ~= nil then firstSyncDestroyTask else taskManager:InsertBack(DestroyTask, dataStore)
     return syncDestroyTask:Wait()
 end
 
-DataStoreManagerMethodQueue = function(dataStoreManager, queueValue, expiration, priority)
+DataStoreMethodQueue = function(dataStore, queueValue, expiration, priority)
     if expiration ~= nil and type(expiration) ~= "number" then
         error("Attempt to AddQueue failed: Passed value is not nil or number", 3)
     end
@@ -351,316 +350,316 @@ DataStoreManagerMethodQueue = function(dataStoreManager, queueValue, expiration,
         error("Attempt to AddQueue failed: Passed value is not nil or number", 3)
     end
     local success, value
-    local memoryStoreQueue = dataStoreManager.MemoryStoreQueue
-    local dataStoreManagerId = dataStoreManager.Id
+    local memoryStoreQueue = dataStore.MemoryStoreQueue
+    local dataStoreId = dataStore.Id
     for i = 1, MEMORYSTOREQUEUE_ADD_MAX_ATTEMPTS do
         if i > 1 then
             task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
         end
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: Queue. MemoryStoreQueue:AddAsync")
+            print("[" .. dataStoreId .. "] INIT: Queue. MemoryStoreQueue:AddAsync")
         end
         success, value = pcall(memoryStoreQueue.AddAsync, memoryStoreQueue, queueValue, expiration or DEFAULT_MEMORYSTOREQUEUE_ADD_ITEM_EXPIRE_TIME, priority)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: Queue. MemoryStoreQueue:AddAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: Queue. MemoryStoreQueue:AddAsync. Took " .. os.clock() - sTime .. "s")
         end
         if success == true then
-            return DATASTORE_MANAGER_RESPONSE_SUCCESS
+            return DATASTORE_RESPONSE_SUCCESS
         end
     end
-    return DATASTORE_MANAGER_RESPONSE_ERROR, value
+    return DATASTORE_RESPONSE_ERROR, value
 end
 
-DataStoreManagerMethodRemove = function(dataStoreManager, id)
+DataStoreMethodRemove = function(dataStore, id)
     if type(id) ~= "string" then
         error("Attempt to RemoveQueue failed: Passed value is not a string", 3)
     end
     local success, value
-    local memoryStoreQueue = dataStoreManager.MemoryStoreQueue
-    local dataStoreManagerId = dataStoreManager.Id
+    local memoryStoreQueue = dataStore.MemoryStoreQueue
+    local dataStoreId = dataStore.Id
     for i = 1, MEMORYSTOREQUEUE_REMOVE_MAX_ATTEMPTS do
         if i > 1 then
             task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
         end
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: Remove. MemoryStoreQueue:RemoveAsync")
+            print("[" .. dataStoreId .. "] INIT: Remove. MemoryStoreQueue:RemoveAsync")
         end
         success, value = pcall(memoryStoreQueue.RemoveAsync, memoryStoreQueue, id)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: Remove. MemoryStoreQueue:RemoveAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: Remove. MemoryStoreQueue:RemoveAsync. Took " .. os.clock() - sTime .. "s")
         end
         if success == true then
-            return DATASTORE_MANAGER_RESPONSE_SUCCESS
+            return DATASTORE_RESPONSE_SUCCESS
         end
     end
-    return DATASTORE_MANAGER_RESPONSE_ERROR, value
+    return DATASTORE_RESPONSE_ERROR, value
 end
 
-DataStoreManagerMethodClone = function(dataStoreManager)
-    return Clone(dataStoreManager.Value)
+DataStoreMethodClone = function(dataStore)
+    return Clone(dataStore.Value)
 end
 
-DataStoreManagerMethodReconcile = function(dataStoreManager, template)
-    local dataStoreManagerValue = dataStoreManager.Value
-    if dataStoreManagerValue == nil then
-        dataStoreManager.Value = Clone(template)
+DataStoreMethodReconcile = function(dataStore, template)
+    local dataStoreValue = dataStore.Value
+    if dataStoreValue == nil then
+        dataStore.Value = Clone(template)
         return
     end
-    if type(dataStoreManagerValue) == "table" and type(template) == "table" then
-        Reconcile(dataStoreManager.Value, template)
+    if type(dataStoreValue) == "table" and type(template) == "table" then
+        Reconcile(dataStore.Value, template)
     end
 end
 
-DataStoreManagerMethodUsage = function(dataStoreManager)
-    local dataStoreManagerValue = dataStoreManager.Value
-    if dataStoreManagerValue == nil then
+DataStoreMethodUsage = function(dataStore)
+    local dataStoreValue = dataStore.Value
+    if dataStoreValue == nil then
         return 0, 0
     end
-    local metadataCompress = dataStoreManager.Metadata.Compress
+    local metadataCompress = dataStore.Metadata.Compress
     if type(metadataCompress) ~= "table" then
-        local strLength = #HttpService:JSONEncode(dataStoreManagerValue)
+        local strLength = #HttpService:JSONEncode(dataStoreValue)
         return strLength, strLength / DATASTORE_MAX_ENTRY_SIZE
     end
     local level = metadataCompress.Level or DEFAULT_COMPRESSION_LEVEL
     local decimals = COMPRESSION_DECIMAL_BASE ^ (metadataCompress.Decimals or DEFAULT_DECIMAL_PRECISION)
     local compressSafety = metadataCompress.Safety
     local isSafetyEnabled = if compressSafety == nil then true else compressSafety
-    dataStoreManager.CompressedValue = Compress(dataStoreManagerValue, level, decimals, isSafetyEnabled)
-    local strLength = #HttpService:JSONEncode(dataStoreManager.CompressedValue)
+    dataStore.CompressedValue = Compress(dataStoreValue, level, decimals, isSafetyEnabled)
+    local strLength = #HttpService:JSONEncode(dataStore.CompressedValue)
     return strLength, strLength / DATASTORE_MAX_ENTRY_SIZE
 end
 
-DataStoreManagerMethodSetSaveInterval = function(dataStoreManager, value)
+DataStoreMethodSetSaveInterval = function(dataStore, value)
     if type(value) ~= "number" then
         error("Attempt to set SaveInterval failed: Passed value is not a number", 3)
     end
-    if value < DATASTORE_MANAGER_MIN_SAVE_INTERVAL and value ~= 0 then
-        error("Attempt to set SaveInterval failed: Passed value is less then 10 and not 0", 3)
+    if value < DATASTORE_MIN_SAVE_INTERVAL and value ~= 0 then
+        error("Attempt to set SaveInterval failed: Passed value is less than 10 and not 0", 3)
     end
-    if value > DATASTORE_MANAGER_MAX_SAVE_INTERVAL then
+    if value > DATASTORE_MAX_SAVE_INTERVAL then
         error("Attempt to set SaveInterval failed: Passed value is more then 1000", 3)
     end
-    if value == dataStoreManager.SaveInterval then
+    if value == dataStore.SaveInterval then
         return
     end
-    dataStoreManager.SaveInterval = value
+    dataStore.SaveInterval = value
     if value == 0 then
-        StopSaveTimer(dataStoreManager)
+        StopSaveTimer(dataStore)
         return
     end
-    StartSaveTimer(dataStoreManager)
+    StartSaveTimer(dataStore)
 end
 
-OpenTask = function(runningTask, dataStoreManager)
-    local lockResponse, lockResponseData = Lock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
-    if lockResponse ~= DATASTORE_MANAGER_RESPONSE_SUCCESS then
+OpenTask = function(runningTask, dataStore)
+    local lockResponse, lockResponseData = Lock(dataStore, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
+    if lockResponse ~= DATASTORE_RESPONSE_SUCCESS then
         for thread in runningTask:Iterate() do
             task.defer(thread, lockResponse, lockResponseData)
         end
         return
     end
-    local loadResponse, loadResponseData = Load(dataStoreManager, DATASTORE_LOAD_MAX_ATTEMPTS)
-    if loadResponse ~= DATASTORE_MANAGER_RESPONSE_SUCCESS then
-        Unlock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
+    local loadResponse, loadResponseData = Load(dataStore, DATASTORE_LOAD_MAX_ATTEMPTS)
+    if loadResponse ~= DATASTORE_RESPONSE_SUCCESS then
+        Unlock(dataStore, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
         for thread in runningTask:Iterate() do
             task.defer(thread, loadResponse, loadResponseData)
         end
         return
     end
-    local dataStoreManagerLockId = dataStoreManager.LockId
+    local dataStoreLockId = dataStore.LockId
     if isModuleActive == true then
-        bindToCloseDataStoreManagers[dataStoreManagerLockId] = dataStoreManager
+        bindToCloseDataStores[dataStoreLockId] = dataStore
     end
-    dataStoreManager.State = true
-    local taskManager = dataStoreManager.TaskManager
+    dataStore.State = true
+    local taskManager = dataStore.TaskManager
     if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
-        StartSaveTimer(dataStoreManager)
-        StartLockTimer(dataStoreManager)
+        StartSaveTimer(dataStore)
+        StartLockTimer(dataStore)
     end
-    local dataStoreManagerValue = dataStoreManager.Value
+    local dataStoreValue = dataStore.Value
     for thread, template in runningTask:Iterate() do
-        if dataStoreManagerValue == nil then
-            dataStoreManager.Value = Clone(template)
-        elseif type(dataStoreManagerValue) == "table" and type(template) == "table" then
-            Reconcile(dataStoreManager.Value, template)
+        if dataStoreValue == nil then
+            dataStore.Value = Clone(template)
+        elseif type(dataStoreValue) == "table" and type(template) == "table" then
+            Reconcile(dataStore.Value, template)
         end
-        task.defer(thread, loadResponse, dataStoreManagerLockId)
+        task.defer(thread, loadResponse, dataStoreLockId)
     end
-    if dataStoreManager.ProcessingQueue == false and dataStoreManager.ProcessQueue.Connections > 0 then
-        task.defer(ProcessQueueTask, dataStoreManager)
+    if dataStore.ProcessingQueue == false and dataStore.ProcessQueue.Connections > 0 then
+        task.defer(ProcessQueueTask, dataStore)
     end
-    dataStoreManager.StateChanged:Fire(true, dataStoreManager)
+    dataStore.StateChanged:Fire(true, dataStore)
 end
 
-ReadTask = function(runningTask, dataStoreManager)
-    if dataStoreManager.State == true then
+ReadTask = function(runningTask, dataStore)
+    if dataStore.State == true then
         for thread in runningTask:Iterate() do
-            task.defer(thread, DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_OPEN)
+            task.defer(thread, DATASTORE_RESPONSE_STATE, DATASTORE_STATE_OPEN)
         end
         return
     end
-    local response, responseData = Load(dataStoreManager, DATASTORE_LOAD_MAX_ATTEMPTS)
-    if response ~= DATASTORE_MANAGER_RESPONSE_SUCCESS then
+    local response, responseData = Load(dataStore, DATASTORE_LOAD_MAX_ATTEMPTS)
+    if response ~= DATASTORE_RESPONSE_SUCCESS then
         for thread in runningTask:Iterate() do
             task.defer(thread, response, responseData)
         end
         return
     end
-    local dataStoreManagerValue = dataStoreManager.Value
+    local dataStoreValue = dataStore.Value
     for thread, template in runningTask:Iterate() do
-        if dataStoreManagerValue == nil then
-            dataStoreManager.Value = Clone(template)
-        elseif type(dataStoreManagerValue) == "table" and type(template) == "table" then
-            Reconcile(dataStoreManager.Value, template)
+        if dataStoreValue == nil then
+            dataStore.Value = Clone(template)
+        elseif type(dataStoreValue) == "table" and type(template) == "table" then
+            Reconcile(dataStore.Value, template)
         end
         task.defer(thread, response)
     end
 end
 
-LockTask = function(runningTask, dataStoreManager)
-    local previousAttemptsRemaining = dataStoreManager.AttemptsRemaining
-    local response, responseData = Lock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
-    if response ~= DATASTORE_MANAGER_RESPONSE_SUCCESS then
-        dataStoreManager.AttemptsRemaining -= 1
+LockTask = function(runningTask, dataStore)
+    local previousAttemptsRemaining = dataStore.AttemptsRemaining
+    local response, responseData = Lock(dataStore, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
+    if response ~= DATASTORE_RESPONSE_SUCCESS then
+        dataStore.AttemptsRemaining -= 1
     end
-    local currentAttemptsRemaining = dataStoreManager.AttemptsRemaining
+    local currentAttemptsRemaining = dataStore.AttemptsRemaining
     if currentAttemptsRemaining ~= previousAttemptsRemaining then
-        dataStoreManager.AttemptsChanged:Fire(currentAttemptsRemaining, dataStoreManager)
+        dataStore.AttemptsChanged:Fire(currentAttemptsRemaining, dataStore)
     end
-    local taskManager = dataStoreManager.TaskManager
+    local taskManager = dataStore.TaskManager
     if currentAttemptsRemaining > 0 then
         if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
-            StartLockTimer(dataStoreManager)
+            StartLockTimer(dataStore)
         end
     else
-        dataStoreManager.State = false
-        StopLockTimer(dataStoreManager)
-        StopSaveTimer(dataStoreManager)
-        if dataStoreManager.SaveOnClose == true then
-            Save(dataStoreManager, DATASTORE_SAVE_MAX_ATTEMPTS)
+        dataStore.State = false
+        StopLockTimer(dataStore)
+        StopSaveTimer(dataStore)
+        if dataStore.SaveOnClose == true then
+            Save(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS)
         end
-        Unlock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
-        dataStoreManager.StateChanged:Fire(false, dataStoreManager)
+        Unlock(dataStore, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
+        dataStore.StateChanged:Fire(false, dataStore)
     end
     return response, responseData
 end
 
-SaveTask = function(runningTask, dataStoreManager)
-    if dataStoreManager.State == false then
+SaveTask = function(runningTask, dataStore)
+    if dataStore.State == false then
         for thread in runningTask:Iterate() do
-            task.defer(thread, DATASTORE_MANAGER_RESPONSE_STATE, DATASTORE_MANAGER_STATE_CLOSED)
+            task.defer(thread, DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED)
         end
         return
     end
-    StopSaveTimer(dataStoreManager)
+    StopSaveTimer(dataStore)
     runningTask:End()
-    local response, responseData = Save(dataStoreManager, DATASTORE_SAVE_MAX_ATTEMPTS)
-    local taskManager = dataStoreManager.TaskManager
+    local response, responseData = Save(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS)
+    local taskManager = dataStore.TaskManager
     if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
-        StartSaveTimer(dataStoreManager)
+        StartSaveTimer(dataStore)
     end
     for thread in runningTask:Iterate() do
         task.defer(thread, response, responseData)
     end
 end
 
-CloseTask = function(runningTask, dataStoreManager)
-    if dataStoreManager.State == false then
+CloseTask = function(runningTask, dataStore)
+    if dataStore.State == false then
         for thread in runningTask:Iterate() do
-            task.defer(thread, DATASTORE_MANAGER_RESPONSE_SUCCESS)
+            task.defer(thread, DATASTORE_RESPONSE_SUCCESS)
         end
         return
     end
-    dataStoreManager.State = false
+    dataStore.State = false
     local response, responseData = nil, nil
-    if dataStoreManager.SaveOnClose == true then
-        response, responseData = Save(dataStoreManager, DATASTORE_SAVE_MAX_ATTEMPTS)
+    if dataStore.SaveOnClose == true then
+        response, responseData = Save(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS)
     end
-    Unlock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
-    dataStoreManager.StateChanged:Fire(false, dataStoreManager)
-    if response == DATASTORE_MANAGER_RESPONSE_SAVED then
+    Unlock(dataStore, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
+    dataStore.StateChanged:Fire(false, dataStore)
+    if response == DATASTORE_RESPONSE_SAVED then
         for thread in runningTask:Iterate() do
             task.defer(thread, response, responseData)
         end
         return
     end
     for thread in runningTask:Iterate() do
-        task.defer(thread, DATASTORE_MANAGER_RESPONSE_SUCCESS)
+        task.defer(thread, DATASTORE_RESPONSE_SUCCESS)
     end
 end
 
-DestroyTask = function(runningTask, dataStoreManager)
+DestroyTask = function(runningTask, dataStore)
     local response, responseData = nil, nil
-    if dataStoreManager.State == false then
-        dataStoreManager.State = nil
+    if dataStore.State == false then
+        dataStore.State = nil
     else
-        dataStoreManager.State = nil
-        if dataStoreManager.SaveOnClose == true then
-            response, responseData = Save(dataStoreManager, DATASTORE_SAVE_MAX_ATTEMPTS)
+        dataStore.State = nil
+        if dataStore.SaveOnClose == true then
+            response, responseData = Save(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS)
         end
-        Unlock(dataStoreManager, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
+        Unlock(dataStore, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
     end
-    local signalStateChanged = dataStoreManager.StateChanged
-    signalStateChanged:Fire(nil, dataStoreManager)
+    local signalStateChanged = dataStore.StateChanged
+    signalStateChanged:Fire(nil, dataStore)
     signalStateChanged:DisconnectAll()
-    dataStoreManager.Saving:DisconnectAll()
-    dataStoreManager.Saved:DisconnectAll()
-    dataStoreManager.AttemptsChanged:DisconnectAll()
-    dataStoreManager.ProcessQueue:DisconnectAll()
-    bindToCloseDataStoreManagers[dataStoreManager.LockId] = nil
-    if response == DATASTORE_MANAGER_RESPONSE_SAVED then
+    dataStore.Saving:DisconnectAll()
+    dataStore.Saved:DisconnectAll()
+    dataStore.AttemptsChanged:DisconnectAll()
+    dataStore.ProcessQueue:DisconnectAll()
+    bindToCloseDataStores[dataStore.LockId] = nil
+    if response == DATASTORE_RESPONSE_SAVED then
         for thread in runningTask:Iterate() do
             task.defer(thread, response, responseData)
         end
         return
     end
     for thread in runningTask:Iterate() do
-        task.defer(thread, DATASTORE_MANAGER_RESPONSE_SUCCESS)
+        task.defer(thread, DATASTORE_RESPONSE_SUCCESS)
     end
 end
 
-ProcessQueueTask = function(dataStoreManager)
-    if dataStoreManager.State ~= true then
+ProcessQueueTask = function(dataStore)
+    if dataStore.State ~= true then
         return
     end
-    if dataStoreManager.ProcessQueue.Connections == 0 then
+    if dataStore.ProcessQueue.Connections == 0 then
         return
     end
-    if dataStoreManager.ProcessingQueue == true then
+    if dataStore.ProcessingQueue == true then
         return
     end
-    dataStoreManager.ProcessingQueue = true
-    local memoryStoreQueue = dataStoreManager.MemoryStoreQueue
-    local dataStoreManagerId = dataStoreManager.Id
+    dataStore.ProcessingQueue = true
+    local memoryStoreQueue = dataStore.MemoryStoreQueue
+    local dataStoreId = dataStore.Id
     while true do
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: ProcessQueueTask. MemoryStoreQueue:ReadAsync")
+            print("[" .. dataStoreId .. "] INIT: ProcessQueueTask. MemoryStoreQueue:ReadAsync")
         end
         local success, items, id = pcall(memoryStoreQueue.ReadAsync, memoryStoreQueue, MEMORYSTOREQUEUE_READ_ITEM_COUNT, MEMORYSTOREQUEUE_READ_ALL_OR_NOTHING, MEMORYSTOREQUEUE_READ_WAIT_TIMEOUT)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: ProcessQueueTask. MemoryStoreQueue:ReadAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: ProcessQueueTask. MemoryStoreQueue:ReadAsync. Took " .. os.clock() - sTime .. "s")
         end
-        if dataStoreManager.State ~= true then
+        if dataStore.State ~= true then
             break
         end
-        local signalProcessQueue = dataStoreManager.ProcessQueue
+        local signalProcessQueue = dataStore.ProcessQueue
         if signalProcessQueue.Connections == 0 then
             break
         end
         if success == true and id ~= nil then
-            signalProcessQueue:Fire(id, items, dataStoreManager)
+            signalProcessQueue:Fire(id, items, dataStore)
         end
     end
-    dataStoreManager.ProcessingQueue = false
+    dataStore.ProcessingQueue = false
 end
 
-Lock = function(dataStoreManager, attempts)
-    local success, value, previousLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStoreManager.LockInterval, dataStoreManager.LockAttempts
+Lock = function(dataStore, attempts)
+    local success, value, previousLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStore.LockInterval, dataStore.LockAttempts
     local lockExpireTime = lockInterval * lockAttempts + MEMORYSTORESORTEDMAP_SESSION_LOCK_EXPIRE_TIME_EXTRA
-    local lockId = dataStoreManager.LockId
+    local lockId = dataStore.LockId
     local function onLockUpdateAsync(previousValue)
         previousLockId = previousValue
         if previousLockId == nil then
@@ -671,8 +670,8 @@ Lock = function(dataStoreManager, attempts)
         end
         return nil
     end
-    local memoryStoreSortedMap = dataStoreManager.MemoryStoreSortedMap
-    local dataStoreManagerId = dataStoreManager.Id
+    local memoryStoreSortedMap = dataStore.MemoryStoreSortedMap
+    local dataStoreId = dataStore.Id
     for i = 1, attempts do
         if i > 1 then
             task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
@@ -680,32 +679,32 @@ Lock = function(dataStoreManager, attempts)
         lockTime = os.clock()
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: Lock. MemoryStoreSortedMap:UpdateAsync")
+            print("[" .. dataStoreId .. "] INIT: Lock. MemoryStoreSortedMap:UpdateAsync")
         end
         success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onLockUpdateAsync, lockExpireTime)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: Lock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: Lock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
         end
         if success == true then
             break
         end
     end
     if success == false then
-        return DATASTORE_MANAGER_RESPONSE_ERROR, value
+        return DATASTORE_RESPONSE_ERROR, value
     end
     if value == nil then
-        return DATASTORE_MANAGER_RESPONSE_LOCKED, previousLockId
+        return DATASTORE_RESPONSE_LOCKED, previousLockId
     end
-    dataStoreManager.LockTime = lockTime + lockInterval * lockAttempts
-    dataStoreManager.ActiveLockInterval = lockInterval
-    dataStoreManager.AttemptsRemaining = lockAttempts
-    return DATASTORE_MANAGER_RESPONSE_SUCCESS
+    dataStore.LockTime = lockTime + lockInterval * lockAttempts
+    dataStore.ActiveLockInterval = lockInterval
+    dataStore.AttemptsRemaining = lockAttempts
+    return DATASTORE_RESPONSE_SUCCESS
 end
 
-Unlock = function(dataStoreManager, attempts)
+Unlock = function(dataStore, attempts)
     local success, value, previousLockId = nil, nil, nil
     local lockExpireTime = 0
-    local lockId = dataStoreManager.LockId
+    local lockId = dataStore.LockId
     local function onUnlockUpdateAsync(previousValue)
         previousLockId = previousValue
         if previousLockId == nil then
@@ -716,169 +715,169 @@ Unlock = function(dataStoreManager, attempts)
         end
         return nil
     end
-    local memoryStoreSortedMap = dataStoreManager.MemoryStoreSortedMap
-    local dataStoreManagerId = dataStoreManager.Id
+    local memoryStoreSortedMap = dataStore.MemoryStoreSortedMap
+    local dataStoreId = dataStore.Id
     for i = 1, attempts do
         if i > 1 then
             task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
         end
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: Unlock. MemoryStoreSortedMap:UpdateAsync")
+            print("[" .. dataStoreId .. "] INIT: Unlock. MemoryStoreSortedMap:UpdateAsync")
         end
         success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onUnlockUpdateAsync, lockExpireTime)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: Unlock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: Unlock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
         end
         if success == true then
             break
         end
     end
     if success == false then
-        return DATASTORE_MANAGER_RESPONSE_ERROR, value
+        return DATASTORE_RESPONSE_ERROR, value
     end
     if value == nil and previousLockId ~= nil then
-        return DATASTORE_MANAGER_RESPONSE_LOCKED, previousLockId
+        return DATASTORE_RESPONSE_LOCKED, previousLockId
     end
-    return DATASTORE_MANAGER_RESPONSE_SUCCESS
+    return DATASTORE_RESPONSE_SUCCESS
 end
 
-Load = function(dataStoreManager, attempts)
+Load = function(dataStore, attempts)
     local success, value, info = nil, nil, nil
-    local dataStore = dataStoreManager.DataStore
-    local dataStoreManagerId = dataStoreManager.Id
-    local dataStoreManagerKey = dataStoreManager.Key
+    local dataStoreInstance = dataStore.DataStore
+    local dataStoreId = dataStore.Id
+    local dataStoreKey = dataStore.Key
     for i = 1, attempts do
         if i > 1 then
             task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
         end
         local sTime = os.clock()
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] INIT: Load. DataStore:GetAsync")
+            print("[" .. dataStoreId .. "] INIT: Load. DataStore:GetAsync")
         end
-        success, value, info = pcall(dataStore.GetAsync, dataStore, dataStoreManagerKey)
+        success, value, info = pcall(dataStoreInstance.GetAsync, dataStoreInstance, dataStoreKey)
         if IS_DEBUG_ENABLED == true then
-            print("[" .. dataStoreManagerId .. "] DONE: Load. DataStore:GetAsync. Took " .. os.clock() - sTime .. "s")
+            print("[" .. dataStoreId .. "] DONE: Load. DataStore:GetAsync. Took " .. os.clock() - sTime .. "s")
         end
         if success == true then
             break
         end
     end
     if success == false then
-        return DATASTORE_MANAGER_RESPONSE_ERROR, value
+        return DATASTORE_RESPONSE_ERROR, value
     end
     if info == nil then
-        dataStoreManager.Metadata, dataStoreManager.UserIds, dataStoreManager.CreatedTime, dataStoreManager.UpdatedTime, dataStoreManager.DataStoreVersion = {}, {}, 0, 0, ""
+        dataStore.Metadata, dataStore.UserIds, dataStore.CreatedTime, dataStore.UpdatedTime, dataStore.DataStoreVersion = {}, {}, 0, 0, ""
     else
-        dataStoreManager.Metadata, dataStoreManager.UserIds, dataStoreManager.CreatedTime, dataStoreManager.UpdatedTime, dataStoreManager.DataStoreVersion = info:GetMetadata(), info:GetUserIds(), info.CreatedTime, info.UpdatedTime, info.Version
+        dataStore.Metadata, dataStore.UserIds, dataStore.CreatedTime, dataStore.UpdatedTime, dataStore.DataStoreVersion = info:GetMetadata(), info:GetUserIds(), info.CreatedTime, info.UpdatedTime, info.Version
     end
-    local metadataCompress = dataStoreManager.Metadata.Compress
+    local metadataCompress = dataStore.Metadata.Compress
     if type(metadataCompress) ~= "table" then
-        dataStoreManager.Value = value
+        dataStore.Value = value
     else
-        dataStoreManager.CompressedValue = value
+        dataStore.CompressedValue = value
         local decimals = COMPRESSION_DECIMAL_BASE ^ (metadataCompress.Decimals or DEFAULT_DECIMAL_PRECISION)
-        dataStoreManager.Value = Decompress(dataStoreManager.CompressedValue, decimals)
+        dataStore.Value = Decompress(dataStore.CompressedValue, decimals)
     end
-    return DATASTORE_MANAGER_RESPONSE_SUCCESS
+    return DATASTORE_RESPONSE_SUCCESS
 end
 
-Save = function(dataStoreManager, attempts)
-    local deltaTime = os.clock() - dataStoreManager.SaveTime
-    local dataStoreManagerSaveDelay = dataStoreManager.SaveDelay
-    if deltaTime < dataStoreManagerSaveDelay then
-        task.wait(dataStoreManagerSaveDelay - deltaTime)
+Save = function(dataStore, attempts)
+    local deltaTime = os.clock() - dataStore.SaveTime
+    local dataStoreSaveDelay = dataStore.SaveDelay
+    if deltaTime < dataStoreSaveDelay then
+        task.wait(dataStoreSaveDelay - deltaTime)
     end
-    local dataStoreManagerValue = dataStoreManager.Value
-    dataStoreManager.Saving:Fire(dataStoreManagerValue, dataStoreManager)
+    local dataStoreValue = dataStore.Value
+    dataStore.Saving:Fire(dataStoreValue, dataStore)
     local success, value = nil, nil
-    local dataStore = dataStoreManager.DataStore
-    local dataStoreManagerId = dataStoreManager.Id
-    local dataStoreManagerMetadata = dataStoreManager.Metadata
-    local metadataCompress = dataStoreManagerMetadata.Compress
-    local signalSaved = dataStoreManager.Saved
-    local dataStoreManagerKey = dataStoreManager.Key
-    if dataStoreManagerValue == nil then
+    local dataStoreInstance = dataStore.DataStore
+    local dataStoreId = dataStore.Id
+    local dataStoreMetadata = dataStore.Metadata
+    local metadataCompress = dataStoreMetadata.Compress
+    local signalSaved = dataStore.Saved
+    local dataStoreKey = dataStore.Key
+    if dataStoreValue == nil then
         for i = 1, attempts do
             if i > 1 then
                 task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
             end
             local sTime = os.clock()
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] INIT: Save. DataStore:RemoveAsync")
+                print("[" .. dataStoreId .. "] INIT: Save. DataStore:RemoveAsync")
             end
-            success, value = pcall(dataStore.RemoveAsync, dataStore, dataStoreManagerKey)
+            success, value = pcall(dataStoreInstance.RemoveAsync, dataStoreInstance, dataStoreKey)
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] DONE: Save. DataStore:RemoveAsync. Took " .. os.clock() - sTime .. "s")
+                print("[" .. dataStoreId .. "] DONE: Save. DataStore:RemoveAsync. Took " .. os.clock() - sTime .. "s")
             end
             if success == true then
                 break
             end
         end
         if success == false then
-            signalSaved:Fire(DATASTORE_MANAGER_RESPONSE_ERROR, value, dataStoreManager)
-            return DATASTORE_MANAGER_RESPONSE_ERROR, value
+            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
+            return DATASTORE_RESPONSE_ERROR, value
         end
-        dataStoreManager.Metadata, dataStoreManager.UserIds, dataStoreManager.CreatedTime, dataStoreManager.UpdatedTime, dataStoreManager.DataStoreVersion = {}, {}, 0, 0, ""
+        dataStore.Metadata, dataStore.UserIds, dataStore.CreatedTime, dataStore.UpdatedTime, dataStore.DataStoreVersion = {}, {}, 0, 0, ""
     elseif type(metadataCompress) ~= "table" then
-        local dataStoreManagerUserIds = dataStoreManager.UserIds
-        local dataStoreManagerDataStoreSetOptions = dataStoreManager.DataStoreSetOptions
-        dataStoreManagerDataStoreSetOptions:SetMetadata(dataStoreManagerMetadata)
+        local dataStoreUserIds = dataStore.UserIds
+        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
+        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
         for i = 1, attempts do
             if i > 1 then
                 task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
             end
             local sTime = os.clock()
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] INIT: Save. DataStore:SetAsync")
+                print("[" .. dataStoreId .. "] INIT: Save. DataStore:SetAsync")
             end
-            success, value = pcall(dataStore.SetAsync, dataStore, dataStoreManagerKey, dataStoreManagerValue, dataStoreManagerUserIds, dataStoreManagerDataStoreSetOptions)
+            success, value = pcall(dataStoreInstance.SetAsync, dataStoreInstance, dataStoreKey, dataStoreValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
+                print("[" .. dataStoreId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
             end
             if success == true then
                 break
             end
         end
         if success == false then
-            signalSaved:Fire(DATASTORE_MANAGER_RESPONSE_ERROR, value, dataStoreManager)
-            return DATASTORE_MANAGER_RESPONSE_ERROR, value
+            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
+            return DATASTORE_RESPONSE_ERROR, value
         end
-        dataStoreManager.DataStoreVersion = value
+        dataStore.DataStoreVersion = value
     else
         local level = metadataCompress.Level or DEFAULT_COMPRESSION_LEVEL
         local decimals = COMPRESSION_DECIMAL_BASE ^ (metadataCompress.Decimals or DEFAULT_DECIMAL_PRECISION)
         local compressSafety = metadataCompress.Safety
         local isSafetyEnabled = if compressSafety == nil then true else compressSafety
-        dataStoreManager.CompressedValue = Compress(dataStoreManagerValue, level, decimals, isSafetyEnabled)
-        local dataStoreManagerUserIds = dataStoreManager.UserIds
-        local dataStoreManagerDataStoreSetOptions = dataStoreManager.DataStoreSetOptions
-        dataStoreManagerDataStoreSetOptions:SetMetadata(dataStoreManagerMetadata)
+        dataStore.CompressedValue = Compress(dataStoreValue, level, decimals, isSafetyEnabled)
+        local dataStoreUserIds = dataStore.UserIds
+        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
+        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
         for i = 1, attempts do
             if i > 1 then
                 task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
             end
             local sTime = os.clock()
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] INIT: Save. DataStore:SetAsync")
+                print("[" .. dataStoreId .. "] INIT: Save. DataStore:SetAsync")
             end
-            success, value = pcall(dataStore.SetAsync, dataStore, dataStoreManagerKey, dataStoreManager.CompressedValue, dataStoreManagerUserIds, dataStoreManagerDataStoreSetOptions)
+            success, value = pcall(dataStoreInstance.SetAsync, dataStoreInstance, dataStoreKey, dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions)
             if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreManagerId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
+                print("[" .. dataStoreId .. "] DONE: Save. DataStore:SetAsync. Took " .. os.clock() - sTime .. "s")
             end
             if success == true then
                 break
             end
         end
         if success == false then
-            signalSaved:Fire(DATASTORE_MANAGER_RESPONSE_ERROR, value, dataStoreManager)
-            return DATASTORE_MANAGER_RESPONSE_ERROR, value
+            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
+            return DATASTORE_RESPONSE_ERROR, value
         end
-        dataStoreManager.DataStoreVersion = value
+        dataStore.DataStoreVersion = value
     end
-    dataStoreManager.SaveTime = os.clock()
-    signalSaved:Fire(DATASTORE_MANAGER_RESPONSE_SAVED, dataStoreManagerValue, dataStoreManager)
-    return DATASTORE_MANAGER_RESPONSE_SAVED, dataStoreManagerValue
+    dataStore.SaveTime = os.clock()
+    signalSaved:Fire(DATASTORE_RESPONSE_SAVED, dataStoreValue, dataStore)
+    return DATASTORE_RESPONSE_SAVED, dataStoreValue
 end
 
 Clone = function(originalValue)
@@ -1009,68 +1008,68 @@ Decode = function(value)
     return number
 end
 
-StartSaveTimer = function(dataStoreManager)
-    local dataStoreManagerSaveThread = dataStoreManager.SaveThread
-    if dataStoreManagerSaveThread ~= nil then
-        task.cancel(dataStoreManagerSaveThread)
+StartSaveTimer = function(dataStore)
+    local dataStoreSaveThread = dataStore.SaveThread
+    if dataStoreSaveThread ~= nil then
+        task.cancel(dataStoreSaveThread)
     end
-    if dataStoreManager.SaveInterval == 0 then
+    if dataStore.SaveInterval == 0 then
         return
     end
-    dataStoreManager.SaveThread = task.delay(dataStoreManager.SaveInterval, onSaveTimerEnded, dataStoreManager)
+    dataStore.SaveThread = task.delay(dataStore.SaveInterval, onSaveTimerEnded, dataStore)
 end
 
-StartLockTimer = function(dataStoreManager)
-    local dataStoreManagerLockThread = dataStoreManager.LockThread
-    if dataStoreManagerLockThread ~= nil then
-        task.cancel(dataStoreManagerLockThread)
+StartLockTimer = function(dataStore)
+    local dataStoreLockThread = dataStore.LockThread
+    if dataStoreLockThread ~= nil then
+        task.cancel(dataStoreLockThread)
     end
-    local dataStoreManagerActiveLockInterval = dataStoreManager.ActiveLockInterval
-    local startTime = dataStoreManager.LockTime - dataStoreManager.AttemptsRemaining * dataStoreManagerActiveLockInterval
-    dataStoreManager.LockThread = task.delay(startTime - os.clock() + dataStoreManagerActiveLockInterval, onLockTimerEnded, dataStoreManager)
+    local dataStoreActiveLockInterval = dataStore.ActiveLockInterval
+    local startTime = dataStore.LockTime - dataStore.AttemptsRemaining * dataStoreActiveLockInterval
+    dataStore.LockThread = task.delay(startTime - os.clock() + dataStoreActiveLockInterval, onLockTimerEnded, dataStore)
 end
 
-StopSaveTimer = function(dataStoreManager)
-    local dataStoreManagerSaveThread = dataStoreManager.SaveThread
-    if dataStoreManagerSaveThread == nil then
+StopSaveTimer = function(dataStore)
+    local dataStoreSaveThread = dataStore.SaveThread
+    if dataStoreSaveThread == nil then
         return
     end
-    task.cancel(dataStoreManagerSaveThread)
-    dataStoreManager.SaveThread = nil
+    task.cancel(dataStoreSaveThread)
+    dataStore.SaveThread = nil
 end
 
-StopLockTimer = function(dataStoreManager)
-    local dataStoreManagerLockThread = dataStoreManager.LockThread
-    if dataStoreManagerLockThread == nil then
+StopLockTimer = function(dataStore)
+    local dataStoreLockThread = dataStore.LockThread
+    if dataStoreLockThread == nil then
         return
     end
-    task.cancel(dataStoreManagerLockThread)
-    dataStoreManager.LockThread = nil
+    task.cancel(dataStoreLockThread)
+    dataStore.LockThread = nil
 end
 
 onProcessQueueConnected = function(isConnected, signal)
     if isConnected == false then
         return
     end
-    ProcessQueueTask(signal.dataStoreManager)
+    ProcessQueueTask(signal.dataStore)
 end
 
-onSaveTimerEnded = function(dataStoreManager)
-    dataStoreManager.SaveThread = nil
-    local taskManager = dataStoreManager.TaskManager
+onSaveTimerEnded = function(dataStore)
+    dataStore.SaveThread = nil
+    local taskManager = dataStore.TaskManager
     if taskManager:FindLast(SaveTask) ~= nil then
         return
     end
-    taskManager:InsertBack(SaveTask, dataStoreManager)
+    taskManager:InsertBack(SaveTask, dataStore)
 end
 
-onLockTimerEnded = function(dataStoreManager)
-    dataStoreManager.LockThread = nil
-    local taskManager = dataStoreManager.TaskManager
+onLockTimerEnded = function(dataStore)
+    dataStore.LockThread = nil
+    local taskManager = dataStore.TaskManager
     if taskManager:FindFirst(LockTask) ~= nil then
         return
     end
-    taskManager:InsertBack(LockTask, dataStoreManager)
+    taskManager:InsertBack(LockTask, dataStore)
 end
 
 onBindToClose = function()
@@ -1079,26 +1078,26 @@ onBindToClose = function()
         print("[" .. scriptName .. "] INIT: onBindToClose")
     end
     isModuleActive = false
-    for lockId, dataStoreManager in pairs(bindToCloseDataStoreManagers) do
-        if dataStoreManager.State == nil then
+    for lockId, dataStore in pairs(bindToCloseDataStores) do
+        if dataStore.State == nil then
             continue
         end
-        activeDataStoreManagers[dataStoreManager.Id] = nil
-        StopLockTimer(dataStoreManager)
-        StopSaveTimer(dataStoreManager)
-        local taskManager = dataStoreManager.TaskManager
+        activeDataStores[dataStore.Id] = nil
+        StopLockTimer(dataStore)
+        StopSaveTimer(dataStore)
+        local taskManager = dataStore.TaskManager
         if taskManager:FindFirst(DestroyTask) ~= nil then
             continue
         end
-        taskManager:InsertBack(DestroyTask, dataStoreManager)
+        taskManager:InsertBack(DestroyTask, dataStore)
     end
-    while next(bindToCloseDataStoreManagers) ~= nil do
+    while next(bindToCloseDataStores) ~= nil do
         task.wait()
     end
-    for dataStoreId, activeDataStore in pairs(activeDataStores) do
-        activeDataStores[dataStoreId] = nil
+    for dataStoreId, activeDataStoreInstance in pairs(activeDataStoreInstances) do
+        activeDataStoreInstances[dataStoreId] = nil
     end
-    while next(activeDataStores) ~= nil do
+    while next(activeDataStoreInstances) ~= nil do
         task.wait()
     end
     if IS_DEBUG_ENABLED == true then
@@ -1108,8 +1107,8 @@ end
 
 game:BindToClose(onBindToClose)
 
-DataStoreManagerModule.new = DataStoreManagerModuleNew
-DataStoreManagerModule.hidden = DataStoreManagerModuleHidden
-DataStoreManagerModule.find = DataStoreManagerModuleFind
-DataStoreManagerModule.Response = DataStoreManagerModuleResponse
-return DataStoreManagerModule :: DataStoreManagerModule
+DataStoreModule.new = DataStoreModuleNew
+DataStoreModule.hidden = DataStoreModuleHidden
+DataStoreModule.find = DataStoreModuleFind
+DataStoreModule.Response = DataStoreModuleResponse
+return DataStoreModule :: DataStoreModule
