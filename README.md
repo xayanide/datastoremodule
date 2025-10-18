@@ -39,7 +39,8 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 
 | **Note** | **Remarks** |
 |------------|-------------------|
-| `ProcessQueue Signal` | In the original module and this fork, this signal is only enabled when the property (`dataStore.ProcessQueue`) is assigned a function. |
+| `DataStore` | Both the original module and this fork create instances called `DataStore`, which share the same name as Roblox's built-in `DataStore` objects. Be careful to distinguish between the module's `DataStore` and Roblox's native `DataStore` instances. |
+| `DataStore.ProcessQueue` | Both the original module and this fork only enables this signal as active when the property (`dataStore.ProcessQueue`) is assigned a function. |
 
 ## Suphi's DataStore Module
 
