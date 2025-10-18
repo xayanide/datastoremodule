@@ -7,9 +7,9 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
-undocumented prior change OpenTask / Open() should only return response, any and not response, string
+undocumented prior change OpenTask / Open() should only return (response, any). not (response, lock id string)
 more then -> more than typo
-cleary differentiate between DataStoreModule.new()'s DataStore and Roblox DataStoreService:GetDataStore()'s DataStore
+clearly differentiate between DataStoreModule.new()'s DataStore and Roblox DataStoreService:GetDataStore()'s DataStore
 less then -> less than typo
 onStateChanged type, SignalModule.SignalModul -> SignalModule.Signal
 string.byte assigned to local getByteValues
