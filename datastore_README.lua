@@ -8,6 +8,8 @@ https://create.roblox.com/store/asset/11671168253
 
 Informal changelog:
 cleary differentiate between DataStoreModule.new()'s DataStore and Roblox DataStoreService:GetDataStore()'s DataStore
+less then -> less than typo
+onStateChanged type, SignalModule.SignalModul -> SignalModule.Signal
 string.byte assigned to local getByteValues
 Large refactor for naming only, DataStoreManager -> DataStore, dataStore.DataStore is referenced as dataStoreInstance and its plural form as well. do not confuse dataStore and dataStoreInstance
 Due to the fact we cannot reference local functions before they're defined, we forward declare the functions instead
