@@ -1,8 +1,7 @@
 --[[
 @xayanide
-A fork of SDM v1.3 (That was last updated on October 28, 2023 UTC+8)
-
-For list of general changelog, please see _README
+A fork of SDM v1.3 that was last updated on October 28, 2023.
+For the general changelog, please see _README.
 ]]
 local DataStoreService = game:GetService("DataStoreService")
 local MemoryStoreService = game:GetService("MemoryStoreService")
@@ -485,7 +484,7 @@ OpenTask = function(runningTask, dataStore)
         elseif type(dataStoreValue) == "table" and type(template) == "table" then
             Reconcile(dataStore.Value, template)
         end
-        task.defer(thread, loadResponse, dataStoreLockId)
+        task.defer(thread, loadResponse)
     end
     if dataStore.ProcessingQueue == false and dataStore.ProcessQueue.Connections > 0 then
         task.defer(ProcessQueueTask, dataStore)
