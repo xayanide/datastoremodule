@@ -10,7 +10,7 @@ https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
 The only breaking change in the API is with `dataStore#SaveInternal`. You can no longer directly modify a DataStore's `SaveInterval` by assigning a value to it because it's no longer assigned a function due to the de-encapsulation. Instead, you must use the `dataStore#SetSaveInterval()` method to change the interval.
 
-The renames doesn't affect the API.
+The renaming does not affect API usage. Just like in the original module, you can use this fork in the same way.
 
 > [!WARNING] In this fork, all of the module's methods and properties, as well as the methods and properties of its instances, are fully exposed. There is no distinction or protection for read-only, private, or public properties. Use caution when accessing or modifying properties, and avoid altering or using internal methods and states unless you fully understand it and its consequences.
 
