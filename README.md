@@ -11,7 +11,8 @@ The only breaking change in the API is with `dataStore#SaveInternal`. You can no
 
 The renaming does not affect API usage. Just like in the original module, you can use this fork in the same way.
 
-> [!WARNING] In this fork, all of the module's methods and properties, as well as the methods and properties of its instances, are fully exposed. There is no distinction or protection for read-only, private, or public properties. Use caution when accessing or modifying properties, and avoid altering or using internal methods and states unless you fully understand it and its consequences.
+> [!WARNING]
+> In this fork, all of the module's methods and properties, as well as the methods and properties of its instances, are fully exposed. There is no distinction or protection for read-only, private, or public properties. Use caution when accessing or modifying properties, and avoid altering or using internal methods and states unless you fully understand it and its consequences.
 
 ## Non-breaking Changes
 
