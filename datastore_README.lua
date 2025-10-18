@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+more then -> more than typo
 cleary differentiate between DataStoreModule.new()'s DataStore and Roblox DataStoreService:GetDataStore()'s DataStore
 less then -> less than typo
 onStateChanged type, SignalModule.SignalModul -> SignalModule.Signal
