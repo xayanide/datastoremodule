@@ -7,7 +7,6 @@ https://create.roblox.com/store/asset/11670710927
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
-unused variable coroutineCreate
 Minor fix: fix: cannot spawn non-suspended coroutine with arguments
 Added Signal types:
     First: Connection?,
