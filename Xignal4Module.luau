@@ -17,7 +17,6 @@ local reusableThreads = {}
 
 local taskSpawn = task.spawn
 local taskDefer = task.defer
-local coroutineCreate = coroutine.create
 local coroutineStatus = coroutine.status
 local coroutineRunning = coroutine.running
 local coroutineYield = coroutine.yield
