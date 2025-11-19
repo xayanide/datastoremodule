@@ -1,6 +1,7 @@
 --[[
-@xayanide
-A fork of SDM v1.3 that was last updated on October 28, 2023.
+VERSION=2.2.1
+@xayanide - 2025-11-19
+A fork of SDM v1.3 that was last updated on 2023-10-28.
 For the general changelog, please see _README.
 ]]
 local DataStoreService = game:GetService("DataStoreService")

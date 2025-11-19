@@ -64,10 +64,12 @@ Lock and Unlock helper functions: Cached dataStoreManager.LockId as a local vari
 Lock and Unlock's helper functions: UpdateAsync transform function parameter value -> previousValue
 OpenTask: Renamed potential conflicting local variable names returned by Lock and Load helper functions
 Added DataStoreManager property and __set as read only: ServerId
-Moved bindToCloseDataStoreManagers[dataStoreManager.LockId] = dataStoreManager assignment to occur only inside OpenTask, and insert to the table right after its Lock and Load operations are completed.
+feat: expose JobId to DataStore object
+feat: remove Proxy encapsulation
+fix: Moved bindToCloseDataStoreManagers[dataStoreManager.LockId] = dataStoreManager assignment to occur only inside OpenTask, and insert to the table right after its Lock and Load operations are completed.
 local base -> local baseIndex
 Added helper function CreatePublicDataStoreManager
-implemented SetSaveInterval method as replacement for property indexing version
+BREAKING CHANGE: implemented SetSaveInterval method as replacement for property indexing version
 reorganized types and modules
 in {} -> in pairs({})
 refactor global characters scope shadowing on functions : characters -> baseCharacters (lua functions ignore shadowed variables outside scope, so it's not a fix)

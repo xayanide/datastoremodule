@@ -1,6 +1,6 @@
 --[[
 VERSION=1.0.0
-@xayanide - April 12, 2025
+@xayanide - 2025-04-12
 ]]
 local ConnectionModule = {}
 local ConnectionDisconnect
