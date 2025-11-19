@@ -1,5 +1,5 @@
 --[[
-VERSION=1.0.0
+VERSION=1.0.1
 @xayanide - 2025-04-12
 ]]
 local ConnectionModule = {}
@@ -43,7 +43,7 @@ startResumableThread = function()
 end
 
 onThreadResume = function(reusableThread, fn, ...)
-    xpcall(fn, warn, ...)
+    fn(...)
     local reusableThreadsLength = #reusableThreads
     if reusableThreadsLength < MAX_REUSABLE_THREADS then
         reusableThreads[reusableThreadsLength + NEXT_INDEX] = reusableThread
