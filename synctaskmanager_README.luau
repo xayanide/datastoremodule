@@ -24,7 +24,7 @@ TaskManager: userData -> taskManager
 SynchronousTask: userData -> syncTask
 RunningTask: userData -> runningTask
 RunningTask Iterate() return type self: RunningTask -> self: RunningTask?
-implemented SetState method as replacement for property indexing version
+BREAKING CHANGE: implemented SetState method as replacement for property indexing version
 reorganized types and modules
 Run -> RunNextTask
 Added type as read only: SyncTaskManager#Active boolean

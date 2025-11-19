@@ -7,7 +7,7 @@ https://create.roblox.com/store/asset/11670710927
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
-Minor fix: fix: cannot spawn non-suspended coroutine with arguments
+fix: cannot spawn non-suspended coroutine with arguments
 Added Signal types:
     First: Connection?,
     Last: Connection?,
@@ -25,5 +25,5 @@ Updated Signal.Connected() 2nd parameter: Signal | Connection
 reorganized types and modules
 Thread -> createResumableThread
 Call -> onThreadResume
-Fixed a bug: signal#Connected callback when disconnecting a connection returns a "boolean, connection" instead of "boolean, signal"
+fix: signal#Connected callback when disconnecting a connection returns a "boolean, connection" instead of "boolean, signal"
 ]]
