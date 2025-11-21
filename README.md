@@ -41,7 +41,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 |------------|-------------------|
 | `DataStore` | Both the original module and this fork create instances called `DataStore`, which share the same name as Roblox's built-in `DataStore` objects. Be careful to distinguish between the module's `DataStore` and Roblox's native `DataStore` instances. |
 | `DataStore.ProcessQueue` | Both the original module and this fork only enables this signal as active when the property (`DataStore.ProcessQueue`) is assigned a function. |
-| `DataStore.JobId` | The original module do not have this property exposed. |
+| `DataStore.JobId` | This field did not exist in the original module and was not exposed. |
 | `bindToCloseDataStores[dataStore.Id]` | Moved `bindToCloseDataStore[dataStore.LockId] = dataStore` assignment to occur only inside `OpenTask`. Only assigns the `dataStore` to the `bindToCloseDataStore[dataStore.LockId]` right after its `Lock` and `Load` operations are completed. In the original module, `dataStore` is immediately assigned right after the `dataStore` object is created. Any `DataStore` in `bindToCloseDataStores` will be destroyed when onBindToClose is called. |
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
 
