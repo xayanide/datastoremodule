@@ -8,7 +8,7 @@ local DataStoreService = game:GetService("DataStoreService")
 local MemoryStoreService = game:GetService("MemoryStoreService")
 local HttpService = game:GetService("HttpService")
 
-local SignalModule = require(script.Xignal4Module)
+local SignalModule = require(script.Xignal5Module)
 local SyncTaskManagerModule = require(script.SyncTaskManagerModule)
 
 local jobId = game.JobId
