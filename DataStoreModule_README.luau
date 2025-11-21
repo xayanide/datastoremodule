@@ -1,5 +1,5 @@
 --[[
-A fork. Refactored version of Suphi's DataStore Module. Can be used the same way and behaves in a similar manner as in the original.
+Refactored version of Suphi's DataStore Module. Can be used the same way and behaves in a similar manner as in the original.
 @xayanide (https://www.roblox.com/users/862645934/profile)
 
 Original:
@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+Remove "Method" from variable names
 revert string.byte getByteValues change
 undocumented prior change OpenTask / Open() should only return (response, any). not (response, lock id string)
 more then -> more than typo

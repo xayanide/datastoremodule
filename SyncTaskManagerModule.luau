@@ -1,13 +1,16 @@
+--[[
+VERSION="1.0.0"
+]]
 local RunningTaskModule = {}
-local RunningTaskMethodNext, RunningTaskMethodIterate, RunningTaskMethodEnd
+local RunningTaskNext, RunningTaskIterate, RunningTaskEnd
 local RunningTaskModuleNew
 
 local SyncTaskModule = {}
-local SyncTaskMethodWait, SyncTaskMethodCancel
+local SyncTaskWait, SyncTaskCancel
 local SyncTaskModuleNew
 
 local SyncTaskManagerModule = {}
-local TaskManagerMethodInsertFront, TaskManagerMethodInsertBack, TaskManagerMethodFindFirst, TaskManagerMethodFindLast, TaskManagerMethodCancelAll, TaskManagerMethodSetState
+local TaskManagerInsertFront, TaskManagerInsertBack, TaskManagerFindFirst, TaskManagerFindLast, TaskManagerCancelAll, TaskManagerSetState
 local StartTaskRunner
 local SyncTaskManagerModuleNew
 
@@ -62,13 +65,13 @@ export type RunningTask = {
 RunningTaskModuleNew = function(syncTask)
     return {
         SyncTask = syncTask,
-        Next = RunningTaskMethodNext,
-        Iterate = RunningTaskMethodIterate,
-        End = RunningTaskMethodEnd,
+        Next = RunningTaskNext,
+        Iterate = RunningTaskIterate,
+        End = RunningTaskEnd,
     }
 end
 
-RunningTaskMethodNext = function(runningTask)
+RunningTaskNext = function(runningTask)
     local syncTask = runningTask.SyncTask
     local firstSyncTask = syncTask.First
     if firstSyncTask == nil then
@@ -81,11 +84,11 @@ RunningTaskMethodNext = function(runningTask)
     return table.unpack(firstSyncTask)
 end
 
-RunningTaskMethodIterate = function(runningTask)
+RunningTaskIterate = function(runningTask)
     return runningTask.Next, runningTask
 end
 
-RunningTaskMethodEnd = function(runningTask)
+RunningTaskEnd = function(runningTask)
     runningTask.SyncTask.Active = false
 end
 
@@ -95,8 +98,8 @@ SyncTaskModuleNew = function(taskManager, func, ...)
     return {
         TaskManager = taskManager,
         Running = false,
-        Wait = SyncTaskMethodWait,
-        Cancel = SyncTaskMethodCancel,
+        Wait = SyncTaskWait,
+        Cancel = SyncTaskCancel,
         Active = true,
         Function = func,
         Parameters = if ... == nil then nil else { ... },
@@ -105,7 +108,7 @@ SyncTaskModuleNew = function(taskManager, func, ...)
     }
 end
 
-SyncTaskMethodWait = function(syncTask, ...)
+SyncTaskWait = function(syncTask, ...)
     if syncTask.Active == false then
         return
     end
@@ -118,7 +121,7 @@ SyncTaskMethodWait = function(syncTask, ...)
     return coroutine.yield()
 end
 
-SyncTaskMethodCancel = function(syncTask)
+SyncTaskCancel = function(syncTask)
     if syncTask.Running == true then
         return false
     end
@@ -151,18 +154,18 @@ SyncTaskManagerModuleNew = function()
         Tasks = 0,
         Running = nil,
         Active = false,
-        InsertFront = TaskManagerMethodInsertFront,
-        InsertBack = TaskManagerMethodInsertBack,
-        FindFirst = TaskManagerMethodFindFirst,
-        FindLast = TaskManagerMethodFindLast,
-        CancelAll = TaskManagerMethodCancelAll,
-        SetState = TaskManagerMethodSetState,
+        InsertFront = TaskManagerInsertFront,
+        InsertBack = TaskManagerInsertBack,
+        FindFirst = TaskManagerFindFirst,
+        FindLast = TaskManagerFindLast,
+        CancelAll = TaskManagerCancelAll,
+        SetState = TaskManagerSetState,
         First = nil,
         Last = nil,
     }
 end
 
-TaskManagerMethodInsertFront = function(taskManager, func, ...)
+TaskManagerInsertFront = function(taskManager, func, ...)
     if type(func) ~= "function" then
         error("Attempt to InsertFront failed: Passed value is not a function", 3)
     end
@@ -180,7 +183,7 @@ TaskManagerMethodInsertFront = function(taskManager, func, ...)
     return syncTask
 end
 
-TaskManagerMethodInsertBack = function(taskManager, func, ...)
+TaskManagerInsertBack = function(taskManager, func, ...)
     if type(func) ~= "function" then
         error("Attempt to InsertBack failed: Passed value is not a function", 3)
     end
@@ -198,7 +201,7 @@ TaskManagerMethodInsertBack = function(taskManager, func, ...)
     return syncTask
 end
 
-TaskManagerMethodFindFirst = function(taskManager, func)
+TaskManagerFindFirst = function(taskManager, func)
     if type(func) ~= "function" then
         error("Attempt to FindFirst failed: Passed value is not a function", 3)
     end
@@ -219,7 +222,7 @@ TaskManagerMethodFindFirst = function(taskManager, func)
     end
 end
 
-TaskManagerMethodFindLast = function(taskManager, func)
+TaskManagerFindLast = function(taskManager, func)
     if type(func) ~= "function" then
         error("Attempt to FindFirst failed: Passed value is not a function", 3)
     end
@@ -240,7 +243,7 @@ TaskManagerMethodFindLast = function(taskManager, func)
     end
 end
 
-TaskManagerMethodCancelAll = function(taskManager, func)
+TaskManagerCancelAll = function(taskManager, func)
     if func == nil then
         local firstSyncTask = taskManager.First
         taskManager.First = nil
@@ -281,7 +284,7 @@ TaskManagerMethodCancelAll = function(taskManager, func)
     end
 end
 
-TaskManagerMethodSetState = function(taskManager, value)
+TaskManagerSetState = function(taskManager, value)
     if type(value) ~= "boolean" then
         error("Attempt to set Enabled failed: Passed value is not a boolean", 3)
     end
@@ -314,11 +317,11 @@ StartTaskRunner = function(taskManager)
     end
     local runningTask = RunningTaskModule.new(firstSyncTask)
     local syncTaskParams = firstSyncTask.Parameters
-    local syncTaskCallback = firstSyncTask.Function
+    local onSyncTaskRun = firstSyncTask.Function
     if syncTaskParams == nil then
-        syncTaskCallback(runningTask)
+        onSyncTaskRun(runningTask)
     else
-        syncTaskCallback(runningTask, table.unpack(syncTaskParams))
+        onSyncTaskRun(runningTask, table.unpack(syncTaskParams))
     end
     taskManager.Tasks -= 1
     taskManager.Running = nil

@@ -1,13 +1,15 @@
---[[ Due to the fact we cannot reference local functions before they're defined, we forward declare the functions instead ]]
+--[[
+VERSION="1.0.1"
+]]
 local ConnectionModule = {}
-local ConnectionMethodDisconnect
+local ConnectionDisconnect
 local ConnectionModuleNew
 
 local SignalModule = {}
 local MAX_REUSABLE_THREADS = 16
 local reusableThreads = {}
-local SignalMethodConnect, SignalMethodOnce, SignalMethodWait, SignalMethodFire, SignalMethodFastFire, SignalMethodDisconnectAll
-local createReusableThread, onThreadResume
+local SignalConnect, SignalOnce, SignalWait, SignalFire, SignalFastFire, SignalDisconnectAll
+local startResumableThread, onThreadResume
 local SignalModuleNew
 
 export type SignalModule = {
@@ -17,7 +19,7 @@ export type SignalModule = {
 export type Signal = {
     [any]: any,
     Connections: number,
-    Connected: (isConnected: boolean, signal: Signal | Connection) -> ()?,
+    Connected: (isConnected: boolean, signal: Signal) -> ()?,
     Connect: (self: Signal, func: (...any) -> (), ...any) -> Connection,
     Once: (self: Signal, func: (...any) -> (), ...any) -> Connection,
     Wait: (self: Signal, ...any) -> ...any,
@@ -47,7 +49,7 @@ ConnectionModuleNew = function(signal, func, ...)
     signal.Connections += 1
     return {
         Signal = signal,
-        Disconnect = ConnectionMethodDisconnect,
+        Disconnect = ConnectionDisconnect,
         FunctionOrThread = func,
         Once = false,
         Parameters = if ... == nil then nil else { ... },
@@ -56,7 +58,7 @@ ConnectionModuleNew = function(signal, func, ...)
     }
 end
 
-ConnectionMethodDisconnect = function(connection)
+ConnectionDisconnect = function(connection)
     local signal = connection.Signal
     if signal == nil then
         return
@@ -89,18 +91,18 @@ SignalModuleNew = function()
     return {
         Connections = 0,
         Connected = nil,
-        Connect = SignalMethodConnect,
-        Once = SignalMethodOnce,
-        Wait = SignalMethodWait,
-        Fire = SignalMethodFire,
-        FastFire = SignalMethodFastFire,
-        DisconnectAll = SignalMethodDisconnectAll,
+        Connect = SignalConnect,
+        Once = SignalOnce,
+        Wait = SignalWait,
+        Fire = SignalFire,
+        FastFire = SignalFastFire,
+        DisconnectAll = SignalDisconnectAll,
         First = nil,
         Last = nil,
     }
 end
 
-SignalMethodConnect = function(signal, func, ...)
+SignalConnect = function(signal, func, ...)
     if type(func) ~= "function" then
         error("Attempt to Connect failed: Passed value is not a function", 3)
     end
@@ -116,7 +118,7 @@ SignalMethodConnect = function(signal, func, ...)
     return connection
 end
 
-SignalMethodOnce = function(signal, func, ...)
+SignalOnce = function(signal, func, ...)
     if type(func) ~= "function" then
         error("Attempt to Connect failed: Passed value is not a function", 3)
     end
@@ -133,7 +135,7 @@ SignalMethodOnce = function(signal, func, ...)
     return connection
 end
 
-SignalMethodWait = function(signal, ...)
+SignalWait = function(signal, ...)
     local connection = ConnectionModule.new(signal, coroutine.running(), ...)
     connection.Once = true
     if signal.Last == nil then
@@ -147,7 +149,7 @@ SignalMethodWait = function(signal, ...)
     return coroutine.yield()
 end
 
-SignalMethodFire = function(signal, ...)
+SignalFire = function(signal, ...)
     local connection = signal.First
     while connection ~= nil do
         if connection.Once == true then
@@ -193,7 +195,7 @@ SignalMethodFire = function(signal, ...)
         else
             local thread = table.remove(reusableThreads)
             if thread == nil then
-                thread = coroutine.create(createReusableThread)
+                thread = coroutine.create(startResumableThread)
                 coroutine.resume(thread)
             end
             if connectionParams == nil then
@@ -207,7 +209,7 @@ SignalMethodFire = function(signal, ...)
     end
 end
 
-SignalMethodFastFire = function(signal, ...)
+SignalFastFire = function(signal, ...)
     local connection = signal.First
     local args = { ... }
     local argsLength = #args + 1
@@ -250,7 +252,7 @@ SignalMethodFastFire = function(signal, ...)
     end
 end
 
-SignalMethodDisconnectAll = function(signal)
+SignalDisconnectAll = function(signal)
     local connection = signal.First
     if connection == nil then
         return
@@ -269,7 +271,7 @@ SignalMethodDisconnectAll = function(signal)
     signal.Connections, signal.First, signal.Last = 0, nil, nil
 end
 
-createReusableThread = function()
+startResumableThread = function()
     while true do
         onThreadResume(coroutine.yield())
     end

@@ -6,6 +6,8 @@ Original:
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+Remove "Method" from variable names
+syncTaskCallback -> onSyncTaskRun
 Due to the fact we cannot reference local functions before they're defined, we forward declare the functions instead
 Task Manager, Synchronous Task, Running Task renamed to have no spaces, including in error messages
 locals synchronousTask -> syncTask
@@ -24,7 +26,7 @@ TaskManager: userData -> taskManager
 SynchronousTask: userData -> syncTask
 RunningTask: userData -> runningTask
 RunningTask Iterate() return type self: RunningTask -> self: RunningTask?
-BREAKING CHANGE: implemented SetState method as replacement for property indexing version
+implemented SetState method as replacement for property indexing version
 reorganized types and modules
 Run -> RunNextTask
 Added type as read only: SyncTaskManager#Active boolean

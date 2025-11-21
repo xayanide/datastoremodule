@@ -1,8 +1,8 @@
-# datastoremodule
+# DataStoreModule
 
-A Roblox DataStore wrapper module. datastoremodule is a fork of Suphi's DataStore Module. It behaves the similarly and can be used almost the same. There were a few optimizations and fixes that don't matter but the notable change is the stripping of some encapsulation and validation. The informal changelog can be read in the respective modules' readme files.
+A Roblox DataStore wrapper. DataStoreModule is a fork of Suphi's DataStore Module. It behaves the similarly and can be used almost the same. There were a few optimizations and fixes that don't matter but the notable change is the stripping of some encapsulation and validation. The informal changelog can be read in the respective modules' readme files.
 
-Get datastoremodule here:
+Get DataStoreModule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
 ## Breaking Changes
@@ -12,12 +12,12 @@ The only breaking change in the API is with `DataStore#SaveInternal`. You can no
 The renaming does not affect API usage. Just like in the original module, you can use this fork in the same way.
 
 > [!WARNING]
-> In this fork, all of the module's methods and properties, as well as the methods and properties of its instances, are fully exposed. There is no distinction or protection for read-only, private, or public properties. Use caution when accessing or modifying properties, and avoid altering or using internal methods and states unless you fully understand it and its consequences.
+> In this fork, most of the API-safety features are gone, no proxy and metatables. All of the module's methods and properties, as well as the methods and properties of its instances, are fully exposed. There is no distinction or protection for read-only, private, or public properties. Use caution when accessing or modifying properties, and avoid altering or using internal methods and states unless you fully understand it and its consequences.
 
 ## Non-breaking Changes
 
-With this fork, Proxy and metatable encapsulation are removed completely, replaced the `SynchronousTaskManager` with my own fork of that module which is `SyncTaskManagerModule` with no Proxy and metatable encapsulation and replaced `Signal` with `Xignal4Module` which is also a fork of Suphi's `Signal`.
-- Xignal4Module
+With this fork, Proxy and metatable encapsulation are removed completely, replaced the `SynchronousTaskManager` with my own fork of that module which is `SyncTaskManagerModule` with no Proxy and metatable encapsulation and replaced `Signal` with `Xignal5Module` which is also a fork of Suphi's `Signal`.
+- Xignal5Module
 - SyncTaskManagerModule
 
 ## Roblox Services Used

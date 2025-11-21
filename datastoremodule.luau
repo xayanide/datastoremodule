@@ -1,5 +1,5 @@
 --[[
-VERSION=2.3.1
+VERSION="2.3.1"
 @xayanide - 2025-11-19
 A fork of SDM v1.3 that was last updated on 2023-10-28.
 For the general changelog, please see _README.
@@ -59,7 +59,7 @@ local isModuleActive = true
 local activeRobloxDataStores = {}
 local activeDataStores, bindToCloseDataStores = {}, {}
 local DataStoreModuleNew, DataStoreModuleHidden, DataStoreModuleFind, DataStoreModuleResponse
-local DataStoreMethodOpen, DataStoreMethodRead, DataStoreMethodSave, DataStoreMethodClose, DataStoreMethodDestroy, DataStoreMethodQueue, DataStoreMethodRemove, DataStoreMethodClone, DataStoreMethodReconcile, DataStoreMethodUsage, DataStoreMethodSetSaveInterval
+local DataStoreOpen, DataStoreRead, DataStoreSave, DataStoreClose, DataStoreDestroy, DataStoreQueue, DataStoreRemove, DataStoreClone, DataStoreReconcile, DataStoreUsage, DataStoreSetSaveInterval
 local OpenTask, ReadTask, LockTask, SaveTask, CloseTask, DestroyTask, ProcessQueueTask
 local Lock, Unlock, Load, Save
 local Clone, Reconcile
@@ -177,17 +177,17 @@ createDataStore = function(name, scope, key, dataStoreId, isHidden)
         Saved = SignalModule.new(),
         AttemptsChanged = SignalModule.new(),
         ProcessQueue = SignalModule.new(),
-        Open = DataStoreMethodOpen,
-        Read = DataStoreMethodRead,
-        Save = DataStoreMethodSave,
-        Close = DataStoreMethodClose,
-        Destroy = DataStoreMethodDestroy,
-        Queue = DataStoreMethodQueue,
-        Remove = DataStoreMethodRemove,
-        Clone = DataStoreMethodClone,
-        Reconcile = DataStoreMethodReconcile,
-        Usage = DataStoreMethodUsage,
-        SetSaveInterval = DataStoreMethodSetSaveInterval,
+        Open = DataStoreOpen,
+        Read = DataStoreRead,
+        Save = DataStoreSave,
+        Close = DataStoreClose,
+        Destroy = DataStoreDestroy,
+        Queue = DataStoreQueue,
+        Remove = DataStoreRemove,
+        Clone = DataStoreClone,
+        Reconcile = DataStoreReconcile,
+        Usage = DataStoreUsage,
+        SetSaveInterval = DataStoreSetSaveInterval,
         SaveThread = nil,
         LockThread = nil,
         TaskManager = SyncTaskManagerModule.new(),
@@ -247,7 +247,7 @@ DataStoreModuleResponse = {
     Error = DATASTORE_RESPONSE_ERROR,
 }
 
-DataStoreMethodOpen = function(dataStore, template)
+DataStoreOpen = function(dataStore, template)
     local dataStoreState = dataStore.State
     if dataStoreState == nil then
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYED
@@ -272,7 +272,7 @@ DataStoreMethodOpen = function(dataStore, template)
     return taskManager:InsertBack(OpenTask, dataStore):Wait(template)
 end
 
-DataStoreMethodRead = function(dataStore, template)
+DataStoreRead = function(dataStore, template)
     local taskManager = dataStore.TaskManager
     local firstSyncReadTask = taskManager:FindFirst(ReadTask)
     if firstSyncReadTask ~= nil then
@@ -284,7 +284,7 @@ DataStoreMethodRead = function(dataStore, template)
     return taskManager:InsertBack(ReadTask, dataStore):Wait(template)
 end
 
-DataStoreMethodSave = function(dataStore)
+DataStoreSave = function(dataStore)
     local dataStoreState = dataStore.State
     if dataStoreState == false then
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
@@ -306,7 +306,7 @@ DataStoreMethodSave = function(dataStore)
     return taskManager:InsertBack(SaveTask, dataStore):Wait()
 end
 
-DataStoreMethodClose = function(dataStore)
+DataStoreClose = function(dataStore)
     local dataStoreState = dataStore.State
     if dataStoreState == nil then
         return DATASTORE_RESPONSE_SUCCESS
@@ -328,7 +328,7 @@ DataStoreMethodClose = function(dataStore)
     return taskManager:InsertBack(CloseTask, dataStore):Wait()
 end
 
-DataStoreMethodDestroy = function(dataStore)
+DataStoreDestroy = function(dataStore)
     if dataStore.State == nil then
         return DATASTORE_RESPONSE_SUCCESS
     end
@@ -341,7 +341,7 @@ DataStoreMethodDestroy = function(dataStore)
     return syncDestroyTask:Wait()
 end
 
-DataStoreMethodQueue = function(dataStore, queueValue, expiration, priority)
+DataStoreQueue = function(dataStore, queueValue, expiration, priority)
     if expiration ~= nil and type(expiration) ~= "number" then
         error("Attempt to AddQueue failed: Passed value is not nil or number", 3)
     end
@@ -370,7 +370,7 @@ DataStoreMethodQueue = function(dataStore, queueValue, expiration, priority)
     return DATASTORE_RESPONSE_ERROR, value
 end
 
-DataStoreMethodRemove = function(dataStore, id)
+DataStoreRemove = function(dataStore, id)
     if type(id) ~= "string" then
         error("Attempt to RemoveQueue failed: Passed value is not a string", 3)
     end
@@ -396,11 +396,11 @@ DataStoreMethodRemove = function(dataStore, id)
     return DATASTORE_RESPONSE_ERROR, value
 end
 
-DataStoreMethodClone = function(dataStore)
+DataStoreClone = function(dataStore)
     return Clone(dataStore.Value)
 end
 
-DataStoreMethodReconcile = function(dataStore, template)
+DataStoreReconcile = function(dataStore, template)
     local dataStoreValue = dataStore.Value
     if dataStoreValue == nil then
         dataStore.Value = Clone(template)
@@ -411,7 +411,7 @@ DataStoreMethodReconcile = function(dataStore, template)
     end
 end
 
-DataStoreMethodUsage = function(dataStore)
+DataStoreUsage = function(dataStore)
     local dataStoreValue = dataStore.Value
     if dataStoreValue == nil then
         return 0, 0
@@ -430,7 +430,7 @@ DataStoreMethodUsage = function(dataStore)
     return strLength, strLength / DATASTORE_MAX_ENTRY_SIZE
 end
 
-DataStoreMethodSetSaveInterval = function(dataStore, value)
+DataStoreSetSaveInterval = function(dataStore, value)
     if type(value) ~= "number" then
         error("Attempt to set SaveInterval failed: Passed value is not a number", 3)
     end
