@@ -24,7 +24,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 
 | **Service** | **Usage in Module** |
 |-------------|-------------------|
-| `DataStoreService` | Used to get `Roblox DataStore` instances via `GetDataStore(name, scope)` in `DataStore` instances from `getActiveDataStoreInstance` and `createDataStore`. Also used for `GetAsync()`, `SetAsync()`, and `RemoveAsync()` operations in `DataStore:Load()` and `DataStore:Save()`. |
+| `DataStoreService` | Used to get `Roblox DataStore` instances via `GetDataStore(name, scope)` in `DataStore` instances from `getActiveDataStoreInstance()` and `createDataStore()`. Also used for `GetAsync()`, `SetAsync()`, and `RemoveAsync()` operations in `DataStore:Load()` and `DataStore:Save()`. |
 | `MemoryStoreService` | Used to get `MemoryStoreSortedMap` and `MemoryStoreQueue` Roblox instances in `DataStore` instances for session locking, unlocking, and queue processing operations. |
 | `HttpService` | Used to generate GUIDs for locks (`GenerateGUID(false)`) and to JSON encode/decode data for compression usage (`JSONEncode()` in `DataStore:Usage()`). |
 
