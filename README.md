@@ -32,7 +32,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 
 | **Module** | **Usage in Module** |
 |------------|-------------------|
-| `SignalModule` | Used to emit, create and manage signals for each `DataStore`, including `StateChanged`, `Saving`, `Saved`, `AttemptsChanged`, and `ProcessQueue`. |
+| `SignalModule` | Used to create, emit, destroy and manage signals for each `DataStore`, including `StateChanged`, `Saving`, `Saved`, `AttemptsChanged`, and `ProcessQueue`. |
 | `SyncTaskManagerModule` | Used to enqueue tasks and run them one by one. Handles the scheduling and execution of tasks like `OpenTask()`, `ReadTask()`, `SaveTask()`, `LockTask()`, `CloseTask()`, `DestroyTask()`, and `ProcessQueueTask()`. |
 
 ## Notes
