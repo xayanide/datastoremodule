@@ -68,7 +68,7 @@ Added DataStoreManager property and __set as read only: ServerId
 feat: expose JobId to DataStore object
 feat: remove metatables and Proxy encapsulation
 feat: detailed debug logs
-fix: Moved bindToCloseDataStoreManagers[dataStoreManager.LockId] = dataStoreManager assignment to occur only inside OpenTask, and insert to the table right after its Lock and Load operations are completed.
+fix: moved bindToCloseDataStoreManagers[dataStoreManager.LockId] = dataStoreManager assignment to occur only inside OpenTask, and insert to the table right after its Lock and Load operations are completed.
 local base -> local baseIndex
 Added helper function CreatePublicDataStoreManager
 BREAKING CHANGE: implemented SetSaveInterval method as replacement for property indexing version
