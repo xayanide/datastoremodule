@@ -13,7 +13,7 @@ https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 Type: Session-locked, stateful DataStore
 - Each `DataStore` has their own separate key.
 - The module locks the session when it is opened.
-- Prevents multiple servers from trying to access the same dataStore's data, only the lock holder can access it.
+- Prevents multiple servers from trying to access the same `DataStore`'s data, only the lock holder can access it.
 
 ### Not Applicable
 
