@@ -5,6 +5,24 @@ A Roblox DataStore wrapper. DataStoreModule is a fork of Suphi's DataStore Modul
 Get DataStoreModule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
+## Use Cases
+
+### Applicable
+
+#### Single-session DataStore
+Type: Session-locked, stateful DataStore
+- Each dataStore has their own separate key.
+- The module locks the session when it is opened.
+- Prevents multiple servers from trying to access the same dataStore's data, only the lock holder can access it.
+
+### Not Applicable
+
+#### Multi-server DataStore
+Type: Shared, accessible DataStore across servers
+- Many servers can write at the same time.
+- You do not need session locking because you want concurrent writes, not a single-session lock.
+- `DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right.
+
 ## Breaking Changes
 
 The only breaking change in the API is with `DataStore#SaveInternal`. You can no longer directly modify a DataStore's `SaveInterval` by assigning a value to it because it's no longer assigned a function due to the de-encapsulation. Instead, you must use the `DataStore:SetSaveInterval(interval: number)` method to change the interval.
