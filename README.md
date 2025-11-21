@@ -21,7 +21,7 @@ Type: Session-locked, stateful DataStore
 Type: Shared, accessible DataStore across servers
 - Many servers can write at the same time.
 - You do not need session locking because you want concurrent writes, not a single-session lock.
-- You do not need this module, use `DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right, read more about it at https://devforum.roblox.com/t/how-to-properly-utilize-updateasync/1133216, https://devforum.roblox.com/t/stop-using-setasync-to-save-player-data/276457.
+- You do not need this module, `DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right, read more about it at https://devforum.roblox.com/t/how-to-properly-utilize-updateasync/1133216, https://devforum.roblox.com/t/stop-using-setasync-to-save-player-data/276457.
 
 ## Breaking Changes
 
