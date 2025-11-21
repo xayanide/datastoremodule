@@ -26,7 +26,7 @@ Then:
 Type: Shared, accessible DataStore across servers
 
 If you have:
-- Many servers can write to the same `DataStore` at the same time.
+- Many servers that can write to the same `DataStore` at the same time.
 
 Then:
 - You do not need session locking because you want concurrent writes, not a single-session lock.
