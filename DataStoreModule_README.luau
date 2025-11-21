@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+fix: Decompress() added missing 'index' parameter, it was already handled though by the 'or' to default to 1
 Remove "Method" from variable names
 revert string.byte getByteValues change
 undocumented prior change OpenTask / Open() should only return (response, any). not (response, lock id string)
