@@ -1,6 +1,6 @@
 # DataStoreModule
 
-A Roblox DataStore wrapper. DataStoreModule is a fork of Suphi's DataStore Module. It behaves the similarly and can be used almost the same. There were a few optimizations and fixes that don't matter but the notable change is the stripping of some encapsulation and validation. The informal changelog can be read in the respective modules' readme files.
+A Roblox DataStore wrapper. DataStoreModule is a fork of Suphi's DataStore Module. It behaves the similarly and can be used almost the same. There were a few optimizations and fixes that don't matter but the notable change is the stripping of some encapsulation and validation. The informal changelog can be read in the respective modules' readme files. This is a refactored version designed to eliminate the reliance on the external `Proxy` module and use standard Lua/Luau table-based object composition instead of metatable-based proxying for public/private access at the cost of API safety and safeguards.
 
 Get DataStoreModule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
