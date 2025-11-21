@@ -45,7 +45,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `bindToCloseDataStores[dataStore.LockId]` | Moved `bindToCloseDataStore[dataStore.LockId] = dataStore` assignment to occur only inside `OpenTask()`. Only assigns the `dataStore` to the `bindToCloseDataStore[dataStore.LockId]` right after its `Lock()` and `Load()` operations are completed. In the original module, `dataStore` is immediately assigned right after the `dataStore` object is created. |
 | `DataStoreModule.hidden()` | No changes. Creates a `DataStore` with `Hidden = true`. Does not store it in `activeDataStores`, so it cannot be retrieved later using `DataStoreModule.find()`. `Hidden` field is neither used internally in this fork and the original and is a private field.
 | `bindToCloseDataStores` | Tracks `DataStore` that are tied to a session or operation and need to be cleaned up automatically when the binding ends. All entries are cleaned up and removed when `onBindToClose()` is called. |
-| `activeDataStores` | Tracks all currently active, in use, non-hidden `DataStore` in the module. It is typically cleaned up when a `DataStore` is closed, or destroyed. |
+| `activeDataStores` | Tracks all currently active, in use, non-hidden `DataStore` in the module. It is typically cleaned up when a `DataStore` is closed, or destroyed. Every `DataStore` stored here can be retrieved later using `DataStoreModule.find()` |
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
 
 
