@@ -20,7 +20,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 - Xignal5Module
 - SyncTaskManagerModule
 
-## Roblox Services Used
+## Roblox Services Used in DataStoreModule
 
 | **Service** | **Usage in Module** |
 |-------------|-------------------|
@@ -28,7 +28,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `MemoryStoreService` | Used to get `MemoryStoreSortedMap` and `MemoryStoreQueue` Roblox instances in `DataStore` instances for session locking, unlocking, and queue processing operations. |
 | `HttpService` | Used to generate GUIDs for locks (`GenerateGUID(false)`) and to JSON encode/decode data for compression usage (`JSONEncode` in `DataStore:Usage()`). |
 
-## Child Modules Used
+## Dependencies of DataStoreModule
 
 | **Module** | **Usage in Module** |
 |------------|-------------------|
