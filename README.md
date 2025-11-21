@@ -11,7 +11,7 @@ https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
 #### Single-session DataStore
 Type: Session-locked, stateful DataStore
-- Each dataStore has their own separate key.
+- Each `DataStore` has their own separate key.
 - The module locks the session when it is opened.
 - Prevents multiple servers from trying to access the same dataStore's data, only the lock holder can access it.
 
@@ -21,7 +21,7 @@ Type: Session-locked, stateful DataStore
 Type: Shared, accessible DataStore across servers
 - Many servers can write at the same time.
 - You do not need session locking because you want concurrent writes, not a single-session lock.
-- `DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right.
+- `DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right, read more about it at https://devforum.roblox.com/t/stop-using-setasync-to-save-player-data/276457.
 
 ## Breaking Changes
 
