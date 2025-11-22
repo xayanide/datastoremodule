@@ -86,9 +86,11 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `DataStore:UpdateOldValue(onUpdate: (previousValue: any) -> any)` | This method did not exist in the original module and is a new feature to utilize Roblox `DataStore:UpdateAsync()` with a custom transform function. |
 | `DataStore:SetLockInterval(value: number)` | This method did not exist in the original module and is a new feature for the ability to toggle the session-locking feature of a DataStore. |
 
+## Documentation
 
-## Suphi's DataStore Module
+Please refer to the original module's documentation.
 
+### Suphi's DataStore Module
 https://devforum.roblox.com/t/suphis-datastore-module/2425597
 
 https://create.roblox.com/marketplace/asset/11671168253
