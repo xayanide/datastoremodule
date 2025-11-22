@@ -1,5 +1,5 @@
 --[[
-VERSION="2.5.1"
+VERSION="2.5.2"
 @xayanide - 2025-11-19
 A fork of SDM v1.3 that was last updated on 2023-10-28.
 For the general changelog, please see _README.
@@ -257,18 +257,14 @@ DataStoreModuleResponse = {
 }
 
 isStringValueEmpty = function(stringValue)
-    if stringValue ~= nil then
-        return false
+    if stringValue == nil or stringValue == "" then
+        return true
     end
-    if stringValue ~= "" then
-        return false
-    end
-    return true
+    return false
 end
 
 DataStoreOpen = function(dataStore, template)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
@@ -296,8 +292,7 @@ DataStoreOpen = function(dataStore, template)
 end
 
 DataStoreRead = function(dataStore, template)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local taskManager = dataStore.TaskManager
@@ -312,8 +307,7 @@ DataStoreRead = function(dataStore, template)
 end
 
 DataStoreSave = function(dataStore)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
@@ -338,8 +332,7 @@ DataStoreSave = function(dataStore)
 end
 
 DataStoreUpdateOldValue = function(dataStore, onUpdate)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
@@ -364,8 +357,7 @@ DataStoreUpdateOldValue = function(dataStore, onUpdate)
 end
 
 DataStoreClose = function(dataStore)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
@@ -390,8 +382,7 @@ DataStoreClose = function(dataStore)
 end
 
 DataStoreDestroy = function(dataStore)
-    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
-    if isKeyNameEmpty then
+    if isStringValueEmpty(dataStore.Key) then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     if dataStore.State == nil then
