@@ -19,7 +19,6 @@ This is good because you just modify the fields you care about, and the wrapper 
 ```lua
 dataStore:Save("Player_1", desiredValue)
 ```
-Where you have to explicitly provide its desired arguments each time.
 
 Get DataStoreModule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
