@@ -37,7 +37,7 @@ Type: Shared, accessible DataStore across servers
 
 If you have many servers write to the same `DataStore` at the same time, then you do not need session locking because you want concurrent writes, not a single-session locked to one server.
 
-`DataStore:UpdateOldValue()` is ideal here, since it handles updates safely for multi-server writes if used right.
+Use `DataStore:SetLockInterval(0)` to disable session-locking.
 
 ## Breaking Changes
 
