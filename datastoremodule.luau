@@ -70,7 +70,7 @@ local Encode, Decode
 local StartSaveTimer, StopSaveTimer
 local StartLockTimer, StopLockTimer
 local onProcessQueueConnected, onSaveTimerEnded, onLockTimerEnded, onBindToClose
-local getActiveRobloxDataStore, createDataStore, getDataStoreId
+local getActiveRobloxDataStore, isStringValueEmpty, createDataStore, getDataStoreId
 
 local baseCharacters = { [0] = "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "!", "$", "%", "&", "'", ",", ".", "/", ":", ";", "=", "?", "@", "[", "]", "^", "_", "`", "{", "}", "~" }
 local baseLength = #baseCharacters + LUA_ARRAY_LENGTH_OFFSET
@@ -256,8 +256,19 @@ DataStoreModuleResponse = {
     Error = DATASTORE_RESPONSE_ERROR,
 }
 
+isStringValueEmpty = function(stringValue)
+    if stringValue ~= nil then
+        return false
+    end
+    if stringValue ~= "" then
+        return false
+    end
+    return true
+end
+
 DataStoreOpen = function(dataStore, template)
-    if dataStore.Key == nil or dataStore.Key == "" then
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
         error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
@@ -285,6 +296,10 @@ DataStoreOpen = function(dataStore, template)
 end
 
 DataStoreRead = function(dataStore, template)
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
+    end
     local taskManager = dataStore.TaskManager
     local firstSyncReadTask = taskManager:FindFirst(ReadTask)
     if firstSyncReadTask ~= nil then
@@ -297,6 +312,10 @@ DataStoreRead = function(dataStore, template)
 end
 
 DataStoreSave = function(dataStore)
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
+    end
     local dataStoreState = dataStore.State
     if dataStoreState == false then
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
@@ -319,6 +338,10 @@ DataStoreSave = function(dataStore)
 end
 
 DataStoreUpdateOldValue = function(dataStore, onUpdate)
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
+    end
     local dataStoreState = dataStore.State
     if dataStoreState == false then
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
@@ -341,6 +364,10 @@ DataStoreUpdateOldValue = function(dataStore, onUpdate)
 end
 
 DataStoreClose = function(dataStore)
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
+    end
     local dataStoreState = dataStore.State
     if dataStoreState == nil then
         return DATASTORE_RESPONSE_SUCCESS
@@ -363,6 +390,10 @@ DataStoreClose = function(dataStore)
 end
 
 DataStoreDestroy = function(dataStore)
+    local isKeyNameEmpty = isStringValueEmpty(dataStore.Key)
+    if isKeyNameEmpty then
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
+    end
     if dataStore.State == nil then
         return DATASTORE_RESPONSE_SUCCESS
     end
