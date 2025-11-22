@@ -90,8 +90,11 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
 
 
-## Suphi's DataStore Module
+## Documentation
 
+Please refer to the original module's documentation.
+
+### Suphi's DataStore Module
 https://devforum.roblox.com/t/suphis-datastore-module/2425597
 
 https://create.roblox.com/marketplace/asset/11671168253
