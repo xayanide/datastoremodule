@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+feat: datastore without key support
 refactor: session lock toggle improvements
 feat: update async and session lock toggle
 fix: Decompress() added missing 'index' parameter, it was already handled though by the 'or' to default to 1
