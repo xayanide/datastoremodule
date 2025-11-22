@@ -14,17 +14,12 @@ Type: Session-locked, stateful DataStore
 
 If you need each `DataStore` to have their own separate key, lock the session when it is opened and unlock once done, prevent multiple servers from trying to access the same `DataStore`'s data while it's locked, so that only the lock holder can access it then this module is for you.
 
-### Not Applicable
-
 #### Multi-server DataStore
 Type: Shared, accessible DataStore across servers
 
-If you have many servers write to the same `DataStore` at the same time, then you do not need session locking because you want concurrent writes, not a single-session locked to one server and you do not need this module for this.
+If you have many servers write to the same `DataStore` at the same time, then you do not need session locking because you want concurrent writes, not a single-session locked to one server.
 
-`DataStore:UpdateAsync()` is ideal here, since it handles updates safely for multi-server writes if used right.
-Read more about it at:
-- https://devforum.roblox.com/t/how-to-properly-utilize-updateasync/1133216
-- https://devforum.roblox.com/t/stop-using-setasync-to-save-player-data/276457
+`DataStore:UpdateOldValue()` is ideal here, since it handles updates safely for multi-server writes if used right.
 
 ## Breaking Changes
 
@@ -69,6 +64,8 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `bindToCloseDataStores` | Tracks `DataStore` that are tied to a Roblox server and need to be cleaned up automatically when the Roblox server ends. All entries are cleaned up and removed when `onBindToClose()` is called. |
 | `activeDataStores` | Tracks all currently active, in use, non-hidden `DataStore` in the module. It is typically cleaned up when a `DataStore` is closed, or destroyed. Every `DataStore` stored here can be retrieved later using `DataStoreModule.find()` |
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
+| `DataStore:UpdateOldValue(onUpdate: (previousValue: any) -> any)` | This method did not exist in the original module and is a new feature to utilize Roblox `DataStore:UpdateAsync()` with a custom transform function. |
+| `DataStore:SetLockInterval(value: number)` | This method did not exist in the original module and is a new feature for the ability to toggle the session-locking feature of a DataStore. |
 
 
 ## Suphi's DataStore Module

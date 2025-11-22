@@ -1,5 +1,5 @@
 --[[
-VERSION="2.3.2"
+VERSION="2.4.2"
 @xayanide - 2025-11-19
 A fork of SDM v1.3 that was last updated on 2023-10-28.
 For the general changelog, please see _README.
@@ -121,7 +121,7 @@ export type DataStore = {
     Open: (self: DataStore, template: any?) -> (string, any),
     Read: (self: DataStore, template: any?) -> (string, any),
     Save: (self: DataStore) -> (string, any),
-    UpdateOldValue: (self: DataStore) -> (string, any),
+    UpdateOldValue: (self: DataStore, onUpdate: (previousValue: any) -> any) -> (string, any),
     Close: (self: DataStore) -> (string, any),
     Destroy: (self: DataStore) -> (string, any),
     Queue: (self: DataStore, value: any, expiration: number?, priority: number?) -> (string, any),
