@@ -84,6 +84,7 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
 | `DataStore:UpdateOldValue(onUpdate: (previousValue: any) -> any)` | This method did not exist in the original module and is a new feature to utilize Roblox `DataStore:UpdateAsync()` with a custom transform function. |
 | `DataStore:SetLockInterval(value: number)` | This method did not exist in the original module and is a new feature for the ability to toggle the session-locking feature of a DataStore. |
+| `DataStoreModule.new(), DataStoreModule.hidden(), DataStoreModule.find()` | These methods' scope parameter is now optional. |
 
 ## Documentation
 
