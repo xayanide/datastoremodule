@@ -24,6 +24,8 @@ local DEFAULT_DATASTORE_SAVE_ON_CLOSE = true
 local DEFAULT_MEMORYSTOREQUEUE_ADD_ITEM_EXPIRE_TIME = 604800
 local DATASTORE_MIN_SAVE_INTERVAL = 10
 local DATASTORE_MAX_SAVE_INTERVAL = 1000
+local DATASTORE_MIN_LOCK_INTERVAL = 60
+local DATASTORE_MAX_LOCK_INTERVAL = 1000
 local DATASTORE_RESPONSE_STATE = "State"
 local DATASTORE_STATE_DESTROYED = "Destroyed"
 local DATASTORE_STATE_DESTROYING = "Destroying"
@@ -59,9 +61,9 @@ local isModuleActive = true
 local activeRobloxDataStores = {}
 local activeDataStores, bindToCloseDataStores = {}, {}
 local DataStoreModuleNew, DataStoreModuleHidden, DataStoreModuleFind, DataStoreModuleResponse
-local DataStoreOpen, DataStoreRead, DataStoreSave, DataStoreClose, DataStoreDestroy, DataStoreQueue, DataStoreRemove, DataStoreClone, DataStoreReconcile, DataStoreUsage, DataStoreSetSaveInterval
-local OpenTask, ReadTask, LockTask, SaveTask, CloseTask, DestroyTask, ProcessQueueTask
-local Lock, Unlock, Load, Save
+local DataStoreOpen, DataStoreRead, DataStoreSave, DataStoreUpdateOldValue, DataStoreClose, DataStoreDestroy, DataStoreQueue, DataStoreRemove, DataStoreClone, DataStoreReconcile, DataStoreUsage, DataStoreSetSaveInterval, DataStoreSetLockInterval
+local OpenTask, ReadTask, LockTask, SaveTask, UpdateOldValueTask, CloseTask, DestroyTask, ProcessQueueTask
+local Lock, Unlock, Load, Save, UpdateOldValue
 local Clone, Reconcile
 local Compress, Decompress
 local Encode, Decode
@@ -73,7 +75,7 @@ local getActiveRobloxDataStore, createDataStore, getDataStoreId
 local baseCharacters = { [0] = "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "!", "$", "%", "&", "'", ",", ".", "/", ":", ";", "=", "?", "@", "[", "]", "^", "_", "`", "{", "}", "~" }
 local baseLength = #baseCharacters + LUA_ARRAY_LENGTH_OFFSET
 local charValues = {}
-for i = (0), #baseCharacters do
+for i = 0, #baseCharacters do
     charValues[string.byte(baseCharacters[i])] = i
 end
 
@@ -119,6 +121,7 @@ export type DataStore = {
     Open: (self: DataStore, template: any?) -> (string, any),
     Read: (self: DataStore, template: any?) -> (string, any),
     Save: (self: DataStore) -> (string, any),
+    UpdateOldValue: (self: DataStore) -> (string, any),
     Close: (self: DataStore) -> (string, any),
     Destroy: (self: DataStore) -> (string, any),
     Queue: (self: DataStore, value: any, expiration: number?, priority: number?) -> (string, any),
@@ -127,6 +130,7 @@ export type DataStore = {
     Reconcile: (self: DataStore, template: any) -> (),
     Usage: (self: DataStore) -> (number, number),
     SetSaveInterval: (self: DataStore, value: number) -> (),
+    SetLockInterval: (self: DataStore, value: number) -> (),
     SaveThread: thread?,
     LockThread: thread?,
     TaskManager: SyncTaskManagerModule.TaskManager,
@@ -180,6 +184,7 @@ createDataStore = function(name, scope, key, dataStoreId, isHidden)
         Open = DataStoreOpen,
         Read = DataStoreRead,
         Save = DataStoreSave,
+        UpdateOldValue = DataStoreUpdateOldValue,
         Close = DataStoreClose,
         Destroy = DataStoreDestroy,
         Queue = DataStoreQueue,
@@ -188,6 +193,7 @@ createDataStore = function(name, scope, key, dataStoreId, isHidden)
         Reconcile = DataStoreReconcile,
         Usage = DataStoreUsage,
         SetSaveInterval = DataStoreSetSaveInterval,
+        SetLockInterval = DataStoreSetLockInterval,
         SaveThread = nil,
         LockThread = nil,
         TaskManager = SyncTaskManagerModule.new(),
@@ -304,6 +310,28 @@ DataStoreSave = function(dataStore)
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
     end
     return taskManager:InsertBack(SaveTask, dataStore):Wait()
+end
+
+DataStoreUpdateOldValue = function(dataStore, onUpdate)
+    local dataStoreState = dataStore.State
+    if dataStoreState == false then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
+    end
+    if dataStoreState == nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYED
+    end
+    local taskManager = dataStore.TaskManager
+    local firstSyncUpdateOldValueTask = taskManager:FindFirst(UpdateOldValueTask)
+    if firstSyncUpdateOldValueTask ~= nil then
+        return firstSyncUpdateOldValueTask:Wait()
+    end
+    if taskManager:FindLast(CloseTask) ~= nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSING
+    end
+    if taskManager:FindLast(DestroyTask) ~= nil then
+        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
+    end
+    return taskManager:InsertBack(UpdateOldValueTask, dataStore, onUpdate):Wait()
 end
 
 DataStoreClose = function(dataStore)
@@ -451,6 +479,27 @@ DataStoreSetSaveInterval = function(dataStore, value)
     StartSaveTimer(dataStore)
 end
 
+DataStoreSetLockInterval = function(dataStore, value)
+    if type(value) ~= "number" then
+        error("Attempt to set LockInterval failed: Passed value is not a number", 3)
+    end
+    if value < DATASTORE_MIN_LOCK_INTERVAL and value ~= 0 then
+        error("Attempt to set LockInterval failed: Passed value is less than 60 and not 0", 3)
+    end
+    if value > DATASTORE_MAX_LOCK_INTERVAL then
+        error("Attempt to set LockInterval failed: Passed value is more than 1000", 3)
+    end
+    if value == dataStore.LockInterval then
+        return
+    end
+    dataStore.LockInterval = value
+    if value == 0 then
+        StopLockTimer(dataStore)
+        return
+    end
+    StartLockTimer(dataStore)
+end
+
 OpenTask = function(runningTask, dataStore)
     local lockResponse, lockResponseData = Lock(dataStore, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
     if lockResponse ~= DATASTORE_RESPONSE_SUCCESS then
@@ -564,6 +613,25 @@ SaveTask = function(runningTask, dataStore)
     end
 end
 
+UpdateOldValueTask = function(runningTask, dataStore, onUpdate)
+    if dataStore.State == false then
+        for thread in runningTask:Iterate() do
+            task.defer(thread, DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED)
+        end
+        return
+    end
+    StopSaveTimer(dataStore)
+    runningTask:End()
+    local response, responseData = UpdateOldValue(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS, onUpdate)
+    local taskManager = dataStore.TaskManager
+    if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
+        StartSaveTimer(dataStore)
+    end
+    for thread in runningTask:Iterate() do
+        task.defer(thread, response, responseData)
+    end
+end
+
 CloseTask = function(runningTask, dataStore)
     if dataStore.State == false then
         for thread in runningTask:Iterate() do
@@ -656,6 +724,9 @@ ProcessQueueTask = function(dataStore)
 end
 
 Lock = function(dataStore, attempts)
+    if dataStore.LockInterval == 0 then
+        return DATASTORE_RESPONSE_SUCCESS
+    end
     local success, value, previousLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStore.LockInterval, dataStore.LockAttempts
     local lockExpireTime = lockInterval * lockAttempts + MEMORYSTORESORTEDMAP_SESSION_LOCK_EXPIRE_TIME_EXTRA
     local lockId = dataStore.LockId
@@ -701,6 +772,9 @@ Lock = function(dataStore, attempts)
 end
 
 Unlock = function(dataStore, attempts)
+    if dataStore.LockInterval == 0 then
+        return DATASTORE_RESPONSE_SUCCESS
+    end
     local success, value, previousLockId = nil, nil, nil
     local lockExpireTime = 0
     local lockId = dataStore.LockId
@@ -879,6 +953,90 @@ Save = function(dataStore, attempts)
     return DATASTORE_RESPONSE_SAVED, dataStoreValue
 end
 
+UpdateOldValue = function(dataStore, attempts, onUpdate)
+    local deltaTime = os.clock() - dataStore.SaveTime
+    local dataStoreSaveDelay = dataStore.SaveDelay
+    if deltaTime < dataStoreSaveDelay then
+        task.wait(dataStoreSaveDelay - deltaTime)
+    end
+    local dataStoreValue = dataStore.Value
+    dataStore.Saving:Fire(dataStoreValue, dataStore)
+    local success, value, info = nil, nil
+    local robloxDataStore = dataStore.DataStore
+    local dataStoreId = dataStore.Id
+    local dataStoreMetadata = dataStore.Metadata
+    local metadataCompress = dataStoreMetadata.Compress
+    local signalSaved = dataStore.Saved
+    local dataStoreKey = dataStore.Key
+    if type(metadataCompress) ~= "table" then
+        local dataStoreUserIds = dataStore.UserIds
+        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
+        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
+        local function onInternalUpdate()
+            local updatedValue = onUpdate(dataStoreValue)
+            return updatedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
+        end
+        for i = 1, attempts do
+            if i > 1 then
+                task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
+            end
+            local sTime = os.clock()
+            if IS_DEBUG_ENABLED == true then
+                print("[" .. dataStoreId .. "] INIT: UpdateOldValue. DataStore:UpdateAsync")
+            end
+            success, value, info = pcall(robloxDataStore.UpdateAsync, robloxDataStore, dataStoreKey, onInternalUpdate)
+            if IS_DEBUG_ENABLED == true then
+                print("[" .. dataStoreId .. "] DONE: UpdateOldValue. DataStore:UpdateAsync. Took " .. os.clock() - sTime .. "s")
+            end
+            if success == true then
+                break
+            end
+        end
+        if success == false then
+            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
+            return DATASTORE_RESPONSE_ERROR, value
+        end
+        dataStore.DataStoreVersion = info.Version
+    else
+        local level = metadataCompress.Level or DEFAULT_COMPRESSION_LEVEL
+        local decimals = COMPRESSION_DECIMAL_BASE ^ (metadataCompress.Decimals or DEFAULT_DECIMAL_PRECISION)
+        local compressSafety = metadataCompress.Safety
+        local isSafetyEnabled = if compressSafety == nil then true else compressSafety
+        local dataStoreUserIds = dataStore.UserIds
+        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
+        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
+        local function onInternalUpdate()
+            local updatedValue = onUpdate(dataStoreValue)
+            dataStore.CompressedValue = Compress(updatedValue, level, decimals, isSafetyEnabled)
+            return dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
+        end
+        for i = 1, attempts do
+            if i > 1 then
+                task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
+            end
+            local sTime = os.clock()
+            if IS_DEBUG_ENABLED == true then
+                print("[" .. dataStoreId .. "] INIT: UpdateOldValue. DataStore:UpdateAsync")
+            end
+            success, value, info = pcall(robloxDataStore.UpdateAsync, robloxDataStore, dataStoreKey, onInternalUpdate)
+            if IS_DEBUG_ENABLED == true then
+                print("[" .. dataStoreId .. "] DONE: UpdateOldValue. DataStore:UpdateAsync. Took " .. os.clock() - sTime .. "s")
+            end
+            if success == true then
+                break
+            end
+        end
+        if success == false then
+            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
+            return DATASTORE_RESPONSE_ERROR, value
+        end
+        dataStore.DataStoreVersion = info.Version
+    end
+    dataStore.SaveTime = os.clock()
+    signalSaved:Fire(DATASTORE_RESPONSE_SAVED, value, dataStore)
+    return DATASTORE_RESPONSE_SAVED, value
+end
+
 Clone = function(originalValue)
     if type(originalValue) ~= "table" then
         return originalValue
@@ -1022,6 +1180,9 @@ StartLockTimer = function(dataStore)
     local dataStoreLockThread = dataStore.LockThread
     if dataStoreLockThread ~= nil then
         task.cancel(dataStoreLockThread)
+    end
+    if dataStore.LockInterval == 0 then
+        return
     end
     local dataStoreActiveLockInterval = dataStore.ActiveLockInterval
     local startTime = dataStore.LockTime - dataStore.AttemptsRemaining * dataStoreActiveLockInterval
