@@ -258,7 +258,7 @@ DataStoreModuleResponse = {
 
 DataStoreOpen = function(dataStore, template)
     if dataStore.Key == nil or dataStore.Key == "" then
-        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.")
+        error("Key name can't be empty. Check if the Key field of the DataStore is an empty string.", 3)
     end
     local dataStoreState = dataStore.State
     if dataStoreState == nil then
