@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+fix: validation for empty key name
 feat: datastore with manual key support and revert session lock improvements
 refactor: session lock toggle improvements
 feat: update async and session lock toggle

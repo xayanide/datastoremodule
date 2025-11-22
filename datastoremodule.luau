@@ -1,5 +1,5 @@
 --[[
-VERSION="2.4.2"
+VERSION="2.5.1"
 @xayanide - 2025-11-19
 A fork of SDM v1.3 that was last updated on 2023-10-28.
 For the general changelog, please see _README.
