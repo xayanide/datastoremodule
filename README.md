@@ -64,7 +64,6 @@ With this fork, Proxy and metatable encapsulation are removed completely, replac
 | `bindToCloseDataStores` | Tracks `DataStore` that are tied to a Roblox server and need to be cleaned up automatically when the Roblox server ends. All entries are cleaned up and removed when `onBindToClose()` is called. |
 | `activeDataStores` | Tracks all currently active, in use, non-hidden `DataStore` in the module. It is typically cleaned up when a `DataStore` is closed, or destroyed. Every `DataStore` stored here can be retrieved later using `DataStoreModule.find()` |
 | `DataStore.LockId` | This was `DataStore.UniqueId` from the original module. Though, in the original module this field is not exposed. |
-| `DataStore:UpdateOldValue(onUpdate: (previousValue: any) -> any)` | This method did not exist in the original module and is a new feature to utilize Roblox `DataStore:UpdateAsync()` with a custom transform function. |
 | `DataStore:SetLockInterval(value: number)` | This method did not exist in the original module and is a new feature for the ability to toggle the session-locking feature of a DataStore. |
 
 

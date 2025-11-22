@@ -61,9 +61,9 @@ local isModuleActive = true
 local activeRobloxDataStores = {}
 local activeDataStores, bindToCloseDataStores = {}, {}
 local DataStoreModuleNew, DataStoreModuleHidden, DataStoreModuleFind, DataStoreModuleResponse
-local DataStoreOpen, DataStoreRead, DataStoreSave, DataStoreUpdateOldValue, DataStoreClose, DataStoreDestroy, DataStoreQueue, DataStoreRemove, DataStoreClone, DataStoreReconcile, DataStoreUsage, DataStoreSetSaveInterval, DataStoreSetLockInterval
-local OpenTask, ReadTask, LockTask, SaveTask, UpdateOldValueTask, CloseTask, DestroyTask, ProcessQueueTask
-local Lock, Unlock, Load, Save, UpdateOldValue
+local DataStoreOpen, DataStoreRead, DataStoreSave, DataStoreClose, DataStoreDestroy, DataStoreQueue, DataStoreRemove, DataStoreClone, DataStoreReconcile, DataStoreUsage, DataStoreSetSaveInterval, DataStoreSetLockInterval
+local OpenTask, ReadTask, LockTask, SaveTask, CloseTask, DestroyTask, ProcessQueueTask
+local Lock, Unlock, Load, Save
 local Clone, Reconcile
 local Compress, Decompress
 local Encode, Decode
@@ -121,7 +121,6 @@ export type DataStore = {
     Open: (self: DataStore, template: any?) -> (string, any),
     Read: (self: DataStore, template: any?) -> (string, any),
     Save: (self: DataStore) -> (string, any),
-    UpdateOldValue: (self: DataStore, onUpdate: (previousValue: any) -> any) -> (string, any),
     Close: (self: DataStore) -> (string, any),
     Destroy: (self: DataStore) -> (string, any),
     Queue: (self: DataStore, value: any, expiration: number?, priority: number?) -> (string, any),
@@ -184,7 +183,6 @@ createDataStore = function(name, scope, key, dataStoreId, isHidden)
         Open = DataStoreOpen,
         Read = DataStoreRead,
         Save = DataStoreSave,
-        UpdateOldValue = DataStoreUpdateOldValue,
         Close = DataStoreClose,
         Destroy = DataStoreDestroy,
         Queue = DataStoreQueue,
@@ -310,28 +308,6 @@ DataStoreSave = function(dataStore)
         return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
     end
     return taskManager:InsertBack(SaveTask, dataStore):Wait()
-end
-
-DataStoreUpdateOldValue = function(dataStore, onUpdate)
-    local dataStoreState = dataStore.State
-    if dataStoreState == false then
-        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED
-    end
-    if dataStoreState == nil then
-        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYED
-    end
-    local taskManager = dataStore.TaskManager
-    local firstSyncUpdateOldValueTask = taskManager:FindFirst(UpdateOldValueTask)
-    if firstSyncUpdateOldValueTask ~= nil then
-        return firstSyncUpdateOldValueTask:Wait()
-    end
-    if taskManager:FindLast(CloseTask) ~= nil then
-        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSING
-    end
-    if taskManager:FindLast(DestroyTask) ~= nil then
-        return DATASTORE_RESPONSE_STATE, DATASTORE_STATE_DESTROYING
-    end
-    return taskManager:InsertBack(UpdateOldValueTask, dataStore, onUpdate):Wait()
 end
 
 DataStoreClose = function(dataStore)
@@ -604,25 +580,6 @@ SaveTask = function(runningTask, dataStore)
     StopSaveTimer(dataStore)
     runningTask:End()
     local response, responseData = Save(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS)
-    local taskManager = dataStore.TaskManager
-    if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
-        StartSaveTimer(dataStore)
-    end
-    for thread in runningTask:Iterate() do
-        task.defer(thread, response, responseData)
-    end
-end
-
-UpdateOldValueTask = function(runningTask, dataStore, onUpdate)
-    if dataStore.State == false then
-        for thread in runningTask:Iterate() do
-            task.defer(thread, DATASTORE_RESPONSE_STATE, DATASTORE_STATE_CLOSED)
-        end
-        return
-    end
-    StopSaveTimer(dataStore)
-    runningTask:End()
-    local response, responseData = UpdateOldValue(dataStore, DATASTORE_SAVE_MAX_ATTEMPTS, onUpdate)
     local taskManager = dataStore.TaskManager
     if taskManager:FindLast(CloseTask) == nil and taskManager:FindLast(DestroyTask) == nil then
         StartSaveTimer(dataStore)
@@ -952,90 +909,6 @@ Save = function(dataStore, attempts)
     dataStore.SaveTime = os.clock()
     signalSaved:Fire(DATASTORE_RESPONSE_SAVED, dataStoreValue, dataStore)
     return DATASTORE_RESPONSE_SAVED, dataStoreValue
-end
-
-UpdateOldValue = function(dataStore, attempts, onUpdate)
-    local deltaTime = os.clock() - dataStore.SaveTime
-    local dataStoreSaveDelay = dataStore.SaveDelay
-    if deltaTime < dataStoreSaveDelay then
-        task.wait(dataStoreSaveDelay - deltaTime)
-    end
-    local dataStoreValue = dataStore.Value
-    dataStore.Saving:Fire(dataStoreValue, dataStore)
-    local success, value, info = nil, nil
-    local robloxDataStore = dataStore.DataStore
-    local dataStoreId = dataStore.Id
-    local dataStoreMetadata = dataStore.Metadata
-    local metadataCompress = dataStoreMetadata.Compress
-    local signalSaved = dataStore.Saved
-    local dataStoreKey = dataStore.Key
-    if type(metadataCompress) ~= "table" then
-        local dataStoreUserIds = dataStore.UserIds
-        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
-        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
-        local function onInternalUpdate()
-            local updatedValue = onUpdate(dataStoreValue)
-            return updatedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
-        end
-        for i = 1, attempts do
-            if i > 1 then
-                task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
-            end
-            local sTime = os.clock()
-            if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreId .. "] INIT: UpdateOldValue. DataStore:UpdateAsync")
-            end
-            success, value, info = pcall(robloxDataStore.UpdateAsync, robloxDataStore, dataStoreKey, onInternalUpdate)
-            if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreId .. "] DONE: UpdateOldValue. DataStore:UpdateAsync. Took " .. os.clock() - sTime .. "s")
-            end
-            if success == true then
-                break
-            end
-        end
-        if success == false then
-            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
-            return DATASTORE_RESPONSE_ERROR, value
-        end
-        dataStore.DataStoreVersion = info.Version
-    else
-        local level = metadataCompress.Level or DEFAULT_COMPRESSION_LEVEL
-        local decimals = COMPRESSION_DECIMAL_BASE ^ (metadataCompress.Decimals or DEFAULT_DECIMAL_PRECISION)
-        local compressSafety = metadataCompress.Safety
-        local isSafetyEnabled = if compressSafety == nil then true else compressSafety
-        local dataStoreUserIds = dataStore.UserIds
-        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
-        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
-        local function onInternalUpdate()
-            local updatedValue = onUpdate(dataStoreValue)
-            dataStore.CompressedValue = Compress(updatedValue, level, decimals, isSafetyEnabled)
-            return dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
-        end
-        for i = 1, attempts do
-            if i > 1 then
-                task.wait(ASYNC_OPERATION_RETRY_WAIT_TIME)
-            end
-            local sTime = os.clock()
-            if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreId .. "] INIT: UpdateOldValue. DataStore:UpdateAsync")
-            end
-            success, value, info = pcall(robloxDataStore.UpdateAsync, robloxDataStore, dataStoreKey, onInternalUpdate)
-            if IS_DEBUG_ENABLED == true then
-                print("[" .. dataStoreId .. "] DONE: UpdateOldValue. DataStore:UpdateAsync. Took " .. os.clock() - sTime .. "s")
-            end
-            if success == true then
-                break
-            end
-        end
-        if success == false then
-            signalSaved:Fire(DATASTORE_RESPONSE_ERROR, value, dataStore)
-            return DATASTORE_RESPONSE_ERROR, value
-        end
-        dataStore.DataStoreVersion = info.Version
-    end
-    dataStore.SaveTime = os.clock()
-    signalSaved:Fire(DATASTORE_RESPONSE_SAVED, value, dataStore)
-    return DATASTORE_RESPONSE_SAVED, value
 end
 
 Clone = function(originalValue)
