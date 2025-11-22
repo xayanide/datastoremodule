@@ -75,7 +75,7 @@ local getActiveRobloxDataStore, createDataStore, getDataStoreId
 local baseCharacters = { [0] = "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "!", "$", "%", "&", "'", ",", ".", "/", ":", ";", "=", "?", "@", "[", "]", "^", "_", "`", "{", "}", "~" }
 local baseLength = #baseCharacters + LUA_ARRAY_LENGTH_OFFSET
 local charValues = {}
-for i = 0, #baseCharacters do
+for i = (0), #baseCharacters do
     charValues[string.byte(baseCharacters[i])] = i
 end
 
@@ -724,10 +724,11 @@ ProcessQueueTask = function(dataStore)
 end
 
 Lock = function(dataStore, attempts)
-    if dataStore.LockInterval == 0 then
+    local lockInterval = dataStore.LockInterval
+    if lockInterval == 0 then
         return DATASTORE_RESPONSE_SUCCESS
     end
-    local success, value, previousLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStore.LockInterval, dataStore.LockAttempts
+    local success, value, previousLockId, lockTime, lockAttempts = nil, nil, nil, nil, dataStore.LockAttempts
     local lockExpireTime = lockInterval * lockAttempts + MEMORYSTORESORTEDMAP_SESSION_LOCK_EXPIRE_TIME_EXTRA
     local lockId = dataStore.LockId
     local function onLockUpdateAsync(previousValue)
