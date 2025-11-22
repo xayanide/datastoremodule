@@ -80,9 +80,9 @@ for i = (0), #baseCharacters do
 end
 
 export type DataStoreModule = {
-    new: (name: string, scope: string, key: string?) -> DataStore,
-    hidden: (name: string, scope: string, key: string?) -> DataStore,
-    find: (name: string, scope: string, key: string?) -> DataStore?,
+    new: (name: string, scope: string?, key: string?) -> DataStore,
+    hidden: (name: string, scope: string?, key: string?) -> DataStore,
+    find: (name: string, scope: string?, key: string?) -> DataStore?,
     Response: {
         Success: string,
         Saved: string,
