@@ -2,6 +2,26 @@
 
 An object-oriented Roblox DataStore wrapper. DataStoreModule is a fork of Suphi's DataStore Module. It behaves the similarly and can be used almost the same. There were a few optimizations and fixes that don't matter but the notable change is the stripping of some encapsulation and validation. The informal changelog can be read in the respective modules' readme files. This is a refactored version designed to eliminate the reliance on the external `Proxy` module and use standard Lua/Luau table-based object composition instead of metatable-based proxying for public/private access at the cost of API safety and safeguards.
 
+One of the advantages of this object-oriented wrapper is the implicit field-based inference. Here's an example.
+```lua
+local dataStore = DataStoreModule.new("PlayerData", "Player_1")
+local openResponse = dataStore:Open()
+if openResponse ~= "Success" then
+    return
+end
+dataStore.Value = desiredValue
+dataStore:Save()
+dataStore:Destroy()
+```
+You set fields on the `dataStore` directly.
+When you call `dataStore` methods, the wrapper reads the fields it just needs.
+This is good because you just modify the fields you care about, and the wrapper does what it needs to do.
+Instead of having to do something like:
+```lua
+dataStore:Save("Player_1", desiredValue)
+```
+Where you have to explicitly provide its desired arguments each time.
+
 Get DataStoreModule here:
 https://create.roblox.com/store/asset/95400986405695/DataStoreModule
 
