@@ -494,9 +494,15 @@ DataStoreSetLockInterval = function(dataStore, value)
     end
     dataStore.LockInterval = value
     if value == 0 then
+        Unlock(dataStore, MEMORYSTORESORTEDMAP_SESSION_UNLOCK_MAX_ATTEMPTS)
         StopLockTimer(dataStore)
         return
     end
+    local taskManager = dataStore.TaskManager
+    if taskManager:FindFirst(LockTask) ~= nil then
+        return
+    end
+    taskManager:InsertBack(LockTask, dataStore)
     StartLockTimer(dataStore)
 end
 
@@ -773,9 +779,6 @@ Lock = function(dataStore, attempts)
 end
 
 Unlock = function(dataStore, attempts)
-    if dataStore.LockInterval == 0 then
-        return DATASTORE_RESPONSE_SUCCESS
-    end
     local success, value, previousLockId = nil, nil, nil
     local lockExpireTime = 0
     local lockId = dataStore.LockId
