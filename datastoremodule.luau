@@ -971,11 +971,9 @@ UpdateOldValue = function(dataStore, attempts, onUpdate)
     local dataStoreKey = dataStore.Key
     if type(metadataCompress) ~= "table" then
         local dataStoreUserIds = dataStore.UserIds
-        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
-        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
         local function onInternalUpdate()
             local updatedValue = onUpdate(dataStoreValue)
-            return updatedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
+            return updatedValue, dataStoreUserIds
         end
         for i = 1, attempts do
             if i > 1 then
@@ -1004,12 +1002,10 @@ UpdateOldValue = function(dataStore, attempts, onUpdate)
         local compressSafety = metadataCompress.Safety
         local isSafetyEnabled = if compressSafety == nil then true else compressSafety
         local dataStoreUserIds = dataStore.UserIds
-        local dataStoreDataStoreSetOptions = dataStore.DataStoreSetOptions
-        dataStoreDataStoreSetOptions:SetMetadata(dataStoreMetadata)
         local function onInternalUpdate()
             local updatedValue = onUpdate(dataStoreValue)
             dataStore.CompressedValue = Compress(updatedValue, level, decimals, isSafetyEnabled)
-            return dataStore.CompressedValue, dataStoreUserIds, dataStoreDataStoreSetOptions
+            return dataStore.CompressedValue, dataStoreUserIds
         end
         for i = 1, attempts do
             if i > 1 then
