@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+fix: Unlock do not need to check for nil (2.3.3)
 refactor: remove name suffix 'Async' from UpdateAsync transform functions
 refactor: get rid of 'previous' variable name prefixes, replaced with 'old'
 fix: Decompress() added missing 'index' parameter, it was already handled though by the 'or' to default to 1
