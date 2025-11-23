@@ -661,15 +661,15 @@ Lock = function(dataStore, attempts)
     local lockId = dataStore.LockId
     local function onLockUpdate(oldValue)
         oldLockId = oldValue
-        -- Claim the lock because this dataStore doesn't have a lock.
+        -- Claim the lock because this dataStore doesn't have a lock
         if oldLockId == nil then
             return lockId
         end
-        -- Reclaim the lock because this dataStore is its owner.
+        -- Reclaim the lock because this dataStore is its owner
         if oldLockId == lockId then
             return lockId
         end
-        -- Cancel the write to not claim the lock because this dataStore is not its owner.
+        -- Cancel the write to not claim the lock because this dataStore is not its owner
         return nil
     end
     local memoryStoreSortedMap = dataStore.MemoryStoreSortedMap
@@ -709,11 +709,11 @@ Unlock = function(dataStore, attempts)
     local lockId = dataStore.LockId
     local function onUnlockUpdate(oldValue)
         oldLockId = oldValue
-        -- Release the lock because this dataStore is its owner.
+        -- Release the lock because this dataStore is its owner
         if oldLockId == lockId then
             return lockId
         end
-        -- Cancel the write to not release the lock because this dataStore is not its owner.
+        -- Cancel the write to not release the lock because this dataStore is not its owner
         return nil
     end
     local memoryStoreSortedMap = dataStore.MemoryStoreSortedMap
