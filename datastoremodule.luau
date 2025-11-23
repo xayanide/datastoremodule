@@ -706,9 +706,6 @@ Unlock = function(dataStore, attempts)
     local lockId = dataStore.LockId
     local function onUnlockUpdate(oldValue)
         oldLockId = oldValue
-        if oldLockId == nil then
-            return lockId
-        end
         if oldLockId == lockId then
             return lockId
         end
