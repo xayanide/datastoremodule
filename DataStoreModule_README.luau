@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+docs: add lock and unlock update comments
 fix: Unlock do not need to check for nil (2.3.3)
 refactor: remove name suffix 'Async' from UpdateAsync transform functions
 refactor: get rid of 'previous' variable name prefixes, replaced with 'old'
