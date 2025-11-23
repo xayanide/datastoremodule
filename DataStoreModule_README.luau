@@ -7,6 +7,7 @@ https://create.roblox.com/store/asset/11671168253
 @5uphi (https://www.roblox.com/users/456056545/profile)
 
 Informal changelog:
+fix: get rid of 'Async' suffixes, replace 'previous' preffixes with 'old', fix onUnlockUpdate condition checking for nil
 fix: validation for empty key name
 feat: datastore with manual key support and revert session lock improvements
 refactor: session lock toggle improvements
