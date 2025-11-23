@@ -518,13 +518,13 @@ ReadTask = function(runningTask, dataStore)
 end
 
 LockTask = function(runningTask, dataStore)
-    local previousAttemptsRemaining = dataStore.AttemptsRemaining
+    local oldAttemptsRemaining = dataStore.AttemptsRemaining
     local response, responseData = Lock(dataStore, MEMORYSTORESORTEDMAP_SESSION_LOCK_MAX_ATTEMPTS)
     if response ~= DATASTORE_RESPONSE_SUCCESS then
         dataStore.AttemptsRemaining -= 1
     end
     local currentAttemptsRemaining = dataStore.AttemptsRemaining
-    if currentAttemptsRemaining ~= previousAttemptsRemaining then
+    if currentAttemptsRemaining ~= oldAttemptsRemaining then
         dataStore.AttemptsChanged:Fire(currentAttemptsRemaining, dataStore)
     end
     local taskManager = dataStore.TaskManager
@@ -656,15 +656,15 @@ ProcessQueueTask = function(dataStore)
 end
 
 Lock = function(dataStore, attempts)
-    local success, value, previousLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStore.LockInterval, dataStore.LockAttempts
+    local success, value, oldLockId, lockTime, lockInterval, lockAttempts = nil, nil, nil, nil, dataStore.LockInterval, dataStore.LockAttempts
     local lockExpireTime = lockInterval * lockAttempts + MEMORYSTORESORTEDMAP_SESSION_LOCK_EXPIRE_TIME_EXTRA
     local lockId = dataStore.LockId
-    local function onLockUpdateAsync(previousValue)
-        previousLockId = previousValue
-        if previousLockId == nil then
+    local function onLockUpdate(oldValue)
+        oldLockId = oldValue
+        if oldLockId == nil then
             return lockId
         end
-        if previousLockId == lockId then
+        if oldLockId == lockId then
             return lockId
         end
         return nil
@@ -680,7 +680,7 @@ Lock = function(dataStore, attempts)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] INIT: Lock. MemoryStoreSortedMap:UpdateAsync")
         end
-        success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onLockUpdateAsync, lockExpireTime)
+        success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onLockUpdate, lockExpireTime)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] DONE: Lock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
         end
@@ -692,7 +692,7 @@ Lock = function(dataStore, attempts)
         return DATASTORE_RESPONSE_ERROR, value
     end
     if value == nil then
-        return DATASTORE_RESPONSE_LOCKED, previousLockId
+        return DATASTORE_RESPONSE_LOCKED, oldLockId
     end
     dataStore.LockTime = lockTime + lockInterval * lockAttempts
     dataStore.ActiveLockInterval = lockInterval
@@ -701,15 +701,15 @@ Lock = function(dataStore, attempts)
 end
 
 Unlock = function(dataStore, attempts)
-    local success, value, previousLockId = nil, nil, nil
+    local success, value, oldLockId = nil, nil, nil
     local lockExpireTime = 0
     local lockId = dataStore.LockId
-    local function onUnlockUpdateAsync(previousValue)
-        previousLockId = previousValue
-        if previousLockId == nil then
+    local function onUnlockUpdate(oldValue)
+        oldLockId = oldValue
+        if oldLockId == nil then
             return lockId
         end
-        if previousLockId == lockId then
+        if oldLockId == lockId then
             return lockId
         end
         return nil
@@ -724,7 +724,7 @@ Unlock = function(dataStore, attempts)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] INIT: Unlock. MemoryStoreSortedMap:UpdateAsync")
         end
-        success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onUnlockUpdateAsync, lockExpireTime)
+        success, value = pcall(memoryStoreSortedMap.UpdateAsync, memoryStoreSortedMap, MEMORYSTORESORTEDMAP_SESSION_LOCK_KEY, onUnlockUpdate, lockExpireTime)
         if IS_DEBUG_ENABLED == true then
             print("[" .. dataStoreId .. "] DONE: Unlock. MemoryStoreSortedMap:UpdateAsync. Took " .. os.clock() - sTime .. "s")
         end
@@ -735,8 +735,8 @@ Unlock = function(dataStore, attempts)
     if success == false then
         return DATASTORE_RESPONSE_ERROR, value
     end
-    if value == nil and previousLockId ~= nil then
-        return DATASTORE_RESPONSE_LOCKED, previousLockId
+    if value == nil and oldLockId ~= nil then
+        return DATASTORE_RESPONSE_LOCKED, oldLockId
     end
     return DATASTORE_RESPONSE_SUCCESS
 end
